@@ -1,0 +1,236 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #1e1e1e;
+  border-right: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-header {
+  padding: 15px;
+  border-bottom: 1px solid #333;
+}
+
+.sidebar-header h2 {
+  font-size: 16px;
+  color: #fff;
+}
+
+.file-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.file-tree-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.file-tree-item:hover {
+  background-color: #333;
+}
+
+.file-tree-item.directory {
+  color: #4fc3f7;
+}
+
+.file-tree-item.file {
+  color: #fff;
+}
+
+.file-tree-item .icon {
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-header {
+  padding: 10px 15px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #333;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.editor-header h3 {
+  font-size: 14px;
+  color: #fff;
+}
+
+.editor-header .file-path {
+  color: #888;
+  font-size: 12px;
+}
+
+.monaco-container {
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-container {
+  height: 300px;
+  border-top: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 10px 15px;
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #333;
+}
+
+.chat-header h3 {
+  font-size: 14px;
+  color: #fff;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.chat-message {
+  margin-bottom: 15px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.chat-message.user {
+  background-color: #0078d4;
+  margin-left: 50px;
+}
+
+.chat-message.assistant {
+  background-color: #333;
+  margin-right: 50px;
+}
+
+.chat-message .role {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.chat-message .content {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.chat-input-container {
+  padding: 15px;
+  border-top: 1px solid #333;
+  display: flex;
+  gap: 10px;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #444;
+  border-radius: 4px;
+  background-color: #333;
+  color: #fff;
+  font-size: 14px;
+  resize: none;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #0078d4;
+}
+
+.chat-send-button {
+  padding: 10px 20px;
+  background-color: #0078d4;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.chat-send-button:hover {
+  background-color: #006cbd;
+}
+
+.chat-send-button:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+.status-bar {
+  padding: 8px 15px;
+  background-color: #0078d4;
+  color: #fff;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.open-folder-button {
+  padding: 10px 20px;
+  background-color: #0078d4;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin: 20px;
+}
+
+.open-folder-button:hover {
+  background-color: #006cbd;
+}

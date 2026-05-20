@@ -1,0 +1,7 @@
+*.html
+node_modules/
+metting/
+dist/
+dist-electron/
+poc/test-*.js
+package-lock.json

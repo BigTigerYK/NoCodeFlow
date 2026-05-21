@@ -19,6 +19,13 @@ const IGNORED_DIRS = new Set([
 ]);
 
 let watcher: chokidar.FSWatcher | null = null;
+let currentWorkspaceRoot: string | null = null;
+
+function isPathWithinWorkspace(filePath: string, workspaceRoot: string): boolean {
+  const resolved = path.resolve(filePath);
+  const resolvedRoot = path.resolve(workspaceRoot);
+  return resolved === resolvedRoot || resolved.startsWith(resolvedRoot + path.sep);
+}
 
 export async function cleanupFsWatchers(): Promise<void> {
   if (watcher) {
@@ -115,6 +122,7 @@ export function registerFsHandlers(): void {
         if (!stat.isDirectory()) {
           return { error: 'Path is not a directory' };
         }
+        currentWorkspaceRoot = path.resolve(rootPath);
         const tree = await buildFileTree(rootPath, maxDepth);
         return { data: tree };
       } catch (err: any) {
@@ -129,6 +137,12 @@ export function registerFsHandlers(): void {
     async (_event, args: { filePath: string }) => {
       try {
         const { filePath } = args;
+        if (!currentWorkspaceRoot) {
+          return { error: 'No workspace open' };
+        }
+        if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
         const stat = await fs.stat(filePath);
 
         if (stat.size > FILE_MAX_SIZE_BYTES) {
@@ -153,6 +167,12 @@ export function registerFsHandlers(): void {
     async (_event, args: { filePath: string; content: string }) => {
       try {
         const { filePath, content } = args;
+        if (!currentWorkspaceRoot) {
+          return { error: 'No workspace open' };
+        }
+        if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
         const dir = path.dirname(filePath);
         await fs.mkdir(dir, { recursive: true });
 

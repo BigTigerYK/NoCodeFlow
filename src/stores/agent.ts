@@ -126,12 +126,16 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   _updateStatus: (status) => set({ status }),
 
   _appendAssistantContent: (content) => set((s) => {
-    const msgs = [...s.messages];
-    const last = msgs[msgs.length - 1];
+    const messages = s.messages;
+    const lastIdx = messages.length - 1;
+    const last = messages[lastIdx];
     if (last && last.role === 'assistant') {
-      msgs[msgs.length - 1] = { ...last, content: last.content + content };
+      const updated = { ...last, content: last.content + content };
+      const newMessages = messages.slice();
+      newMessages[lastIdx] = updated;
+      return { messages: newMessages };
     }
-    return { messages: msgs };
+    return s;
   }),
 
   _handleOutputEvent: (event: AgentOutputEvent) => {

@@ -1,4 +1,5 @@
-import { FolderOpen, Save } from 'lucide-react';
+import { useState } from 'react';
+import { FolderOpen, Save, MessageSquare, X } from 'lucide-react';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { Button } from '@/components/ui/button';
@@ -6,16 +7,20 @@ import { FileTree } from './FileTree';
 import { Editor } from './Editor';
 import { EditorTabs } from './EditorTabs';
 import { EmptyState } from './EmptyState';
+import { ChatPanel } from '@/components/Agent/ChatPanel';
 
 export function WorkspacePage() {
   const {
     isOpen,
     workspaceName,
+    rootPath,
     openWorkspace,
     activeTabPath,
     openTabs,
     saveActiveFile,
   } = useWorkspaceStore();
+
+  const [showAgent, setShowAgent] = useState(false);
 
   const handleOpenFolder = async () => {
     const path = await window.api.invoke(IPC_CHANNELS.FS_OPEN_DIALOG);
@@ -60,6 +65,15 @@ export function WorkspacePage() {
               Save
             </Button>
           )}
+          <Button
+            variant={showAgent ? 'secondary' : 'ghost'}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setShowAgent(!showAgent)}
+          >
+            {showAgent ? <X className="h-3.5 w-3.5 mr-1.5" /> : <MessageSquare className="h-3.5 w-3.5 mr-1.5" />}
+            {showAgent ? 'Close Agent' : 'Agent'}
+          </Button>
         </div>
       </div>
 
@@ -77,6 +91,13 @@ export function WorkspacePage() {
             <Editor />
           </div>
         </div>
+
+        {/* Agent chat panel */}
+        {showAgent && rootPath && (
+          <div className="w-96 shrink-0">
+            <ChatPanel workspacePath={rootPath} />
+          </div>
+        )}
       </div>
     </div>
   );

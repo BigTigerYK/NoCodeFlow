@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-NoCodeFlow is an AI-assisted zero-code development platform built as an Electron desktop app. Users interact with an AI Agent via natural language to build applications. The project is in early development — the workspace editor is functional, but the AI agent, task center, knowledge base, and other core features are placeholder stubs (`src/core/` directories contain only README.md files).
+NoCodeFlow is an AI-assisted zero-code development platform built as an Electron desktop app. Users interact with an AI Agent (powered by Claude CLI) via natural language to build applications. The workspace editor and agent chat are functional; task center and knowledge base are placeholder stubs.
 
 ## Development Commands
 
@@ -22,9 +22,9 @@ No test framework, linter, or CI/CD pipeline is configured yet.
 
 ### Electron Process Split
 
-- **Main process**: `electron/main/index.ts` — creates BrowserWindow, registers IPC handlers
-- **Preload**: `electron/preload/index.ts` — exposes `window.api` via contextBridge (invoke/on, channel-whitelisted)
-- **Renderer**: `src/` — React SPA
+- **Main process**: `electron/main/index.ts` — entry point, registers IPC handlers, creates window
+- **Preload**: `electron/preload/index.ts` — exposes `window.api` via contextBridge
+- **Renderer**: `src/` — React SPA (Zustand + React Router)
 
 Security model: `contextIsolation: true`, `nodeIntegration: false`. All main↔renderer communication goes through IPC channels defined in `shared/types/ipc.ts`.
 
@@ -35,34 +35,61 @@ Security model: `contextIsolation: true`, `nodeIntegration: false`. All main↔r
 
 Configured in both `tsconfig.json` and `vite.config.ts`.
 
+### Agent System (ClaudeAdapter)
+
+The agent runtime spawns the `claude` CLI as a child process and parses its streaming JSON output. Data flow:
+
+```
+Renderer (ChatPanel) → IPC (AGENT_START/SEND/STOP) → Main (agent.ts handler)
+  → ClaudeAdapter (spawn claude CLI, parse stream-json)
+  → IPC (AGENT_OUTPUT/AGENT_STATUS events) → Renderer (useAgentStore)
+```
+
+Key files:
+- `electron/main/agent/claude-adapter.ts` — spawns `claude -p --output-format stream-json`, parses events by `type` field (text, tool_use, tool_result, error, result, system), manages session resumption via `session_id`, handles lifecycle (idle→starting→running→completed|error)
+- `electron/main/ipc/agent.ts` — reads active `ClaudeProfile` from config, creates adapter, wires output/status callbacks to `webContents.send()`
+- `src/stores/agent.ts` — Zustand store managing messages, status, and IPC event listeners
+- `src/components/Agent/` — ChatPanel, MessageBubble, ChatInput, AgentStatus, MarkdownRenderer, AgentUnavailableNotice
+
+The chat panel is embedded in the Workspace page (toggled by "Agent" button), not a standalone sidebar page.
+
+**ClaudeProfile config**: Users configure API base URL, API key, and optional model per profile in Settings → Agent 配置. The active profile is read by the agent IPC handler at `AGENT_START` time.
+
 ### IPC Communication
 
-IPC handlers live in `electron/main/ipc/` (one file per domain: `fs.ts`, `config.ts`, `dialog.ts`). Channel constants are in `shared/types/ipc.ts`. The preload script validates channels against this allowlist before forwarding.
+IPC handlers live in `electron/main/ipc/` (one file per domain: `fs.ts`, `config.ts`, `dialog.ts`, `agent.ts`). Channel constants are in `shared/types/ipc.ts`. The preload script validates channels against this allowlist.
 
-Currently implemented: file read/write/tree/watch, config CRUD, native dialogs. Reserved but not implemented: agent, permission, snapshot, event-bus channels.
+Preload `on()` listeners are restricted to: `AGENT_OUTPUT`, `AGENT_STATUS`, `FS_WATCH`, `PERMISSION_REQUEST`.
+
+Implemented domains: file read/write/tree/watch, config CRUD, native dialogs, agent lifecycle. Reserved but not implemented: permission sandbox, snapshot, event-bus.
+
+**IPC response format note**: `fs.ts` handlers return `{ data, error }` wrappers; `agent.ts` handlers return `{ success, error?, version? }` directly. The workspace store uses an `ipcInvoke` helper that unwraps `{ data, error }`.
 
 ### Shared Types
 
-`shared/types/` is the contract between main and renderer processes. Key files:
-- `ipc.ts` — channel constants
-- `config.ts` — `AppConfig` interface and defaults
+`shared/types/` is the contract between main and renderer processes:
+- `ipc.ts` — channel constants (`IPC_CHANNELS`)
+- `config.ts` — `AppConfig`, `ClaudeProfile`, `DEFAULT_CONFIG`
 - `workspace.ts` — `FileNode`, `WorkspaceInfo`
-- `agent.ts` — `AgentAdapter`, `AgentEvent` interfaces (future use)
+- `agent.ts` — `AgentStatus`, `AgentOutputEvent` (typed as `data: unknown`)
 
 **Rule from COLLABORATION.md**: Changes to `shared/types/` require PR review from both team members.
 
+**Known mismatch**: The `AgentAdapter` interface in `agent.ts` defines `start(task, workspacePath)` + single `onEvent()` callback, but `ClaudeAdapter` uses constructor-based config with separate `onOutput`/`onStatusChange` callbacks. The interface is not implemented by the class.
+
 ### State Management
 
-- **Zustand store** (`src/stores/workspace.ts`): workspace state, file tree, editor tabs, all actions
+- **Workspace store** (`src/stores/workspace.ts`): file tree, editor tabs with dirty tracking, language detection
+- **Agent store** (`src/stores/agent.ts`): messages, agent status, IPC event routing
 - **Config** via `useConfig` hook (`src/hooks/useConfig.ts`): talks to electron-store through IPC
 
 ### UI Component Library
 
-shadcn/ui components live in `src/components/ui/`. Config is in `components.json` (slate base color, CSS variables enabled). New shadcn components are added via `npx shadcn-ui@latest add <component>`.
+shadcn/ui components live in `src/components/ui/`. Config is in `components.json` (slate base color, CSS variables enabled). Add new components via `npx shadcn-ui@latest add <component>`.
 
 ### Layout
 
-Sidebar-based layout (`src/components/layout/`) with four pages: Task Center (placeholder), Workspace (functional), Knowledge Base (placeholder), Settings (basic).
+Sidebar-based layout (`src/components/layout/`) with four pages: Task Center (placeholder), Workspace (functional, includes embedded Agent chat panel), Knowledge Base (placeholder), Settings (General + Claude profile management).
 
 ### Theming
 
@@ -72,7 +99,7 @@ Light/dark/system themes via CSS variables in `src/index.css` and Tailwind `dark
 
 Two-person team defined in `COLLABORATION.md`:
 - **Role A (Base Engineer)**: Electron main process, IPC, file system, agent runtime, security sandbox, git snapshot — owns `electron/`, `src/components/Workspace/`, `src/components/layout/`
-- **Role B (Intelligence & UX)**: Claude adapter, chat UI, timeline, task center, knowledge layer — owns `src/components/TaskCenter/`, `src/components/KnowledgeBase/`, future `chat/`, `timeline/`, `document/`
+- **Role B (Intelligence & UX)**: Claude adapter, chat UI, timeline, task center, knowledge layer — owns `src/components/TaskCenter/`, `src/components/KnowledgeBase/`, `src/components/Agent/`, `src/components/Settings/ClaudeSettings.tsx`
 - **Shared**: `shared/types/`, `src/components/ui/`, `src/stores/`
 
 Branch convention: `feature/phase<N>-<description>`. Commit format: `type(scope): subject` (Chinese or English).
@@ -83,5 +110,6 @@ Branch convention: `feature/phase<N>-<description>`. Commit format: `type(scope)
 - **electron-store** for persistent config (not file-based JSON)
 - **chokidar** for file system watching in main process
 - **Monaco Editor** (`@monaco-editor/react`) for code editing
-- **Atomic file writes** in `fs:write` handler (write to .tmp, then rename)
-- File tree has max depth 10, ignores `node_modules`, `.git`, `dist`, `dist-electron`, `build`
+- **Claude CLI** spawned as child process (not SDK) — requires `npm install -g @anthropic-ai/claude-code`
+- **Atomic file writes** in `fs:write` handler (write to `.nocodeflow-tmp`, then rename)
+- File tree max depth 10, ignores `node_modules`, `.git`, `dist`, `.next`, `__pycache__`, `.DS_Store`, `dist-electron`, `.nocodeflow`

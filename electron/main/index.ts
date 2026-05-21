@@ -1,11 +1,15 @@
 import { app } from 'electron';
 import { createMainWindow } from './window';
-import { registerAllIpcHandlers } from './ipc';
+import { registerAllIpcHandlers, cleanupAllIpcHandlers } from './ipc';
 import { cleanupFsWatchers } from './ipc/fs';
 
 app.whenReady().then(() => {
   registerAllIpcHandlers();
   createMainWindow();
+});
+
+app.on('before-quit', () => {
+  cleanupAllIpcHandlers();
 });
 
 app.on('window-all-closed', async () => {

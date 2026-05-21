@@ -1,3 +1,11 @@
+export interface ClaudeProfile {
+  id: string;
+  name: string;
+  baseUrl: string;
+  apiKey: string;
+  model?: string;
+}
+
 export interface AppConfig {
   general: {
     language: string;
@@ -8,6 +16,10 @@ export interface AppConfig {
     tabSize: number;
     wordWrap: 'on' | 'off';
     minimap: boolean;
+  };
+  claude: {
+    profiles: ClaudeProfile[];
+    activeProfileId: string | null;
   };
   recentWorkspaces: string[];
 }
@@ -22,6 +34,10 @@ export const DEFAULT_CONFIG: AppConfig = {
     tabSize: 2,
     wordWrap: 'on',
     minimap: true,
+  },
+  claude: {
+    profiles: [],
+    activeProfileId: null,
   },
   recentWorkspaces: [],
 };

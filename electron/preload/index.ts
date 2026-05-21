@@ -13,6 +13,7 @@ const api = {
   on: (channel: string, callback: (...args: unknown[]) => void) => {
     const allowedChannels = [
       IPC_CHANNELS.AGENT_OUTPUT,
+      IPC_CHANNELS.AGENT_STATUS,
       IPC_CHANNELS.FS_WATCH,
       IPC_CHANNELS.PERMISSION_REQUEST,
     ];

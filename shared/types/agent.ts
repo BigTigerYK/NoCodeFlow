@@ -1,13 +1,9 @@
-export type AgentStatus = 'idle' | 'running' | 'paused' | 'error' | 'completed';
+export type AgentStatus = 'idle' | 'starting' | 'running' | 'error' | 'completed';
 
-export interface AgentEvent {
-  id: string;
-  type: 'read' | 'write' | 'delete' | 'execute' | 'analyze' | 'error';
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  description: string;
-  filePath?: string;
+export interface AgentOutputEvent {
+  type: 'text' | 'tool_use' | 'tool_result' | 'error' | 'result' | 'system';
+  data: unknown;
   timestamp: number;
-  detail?: string;
 }
 
 export interface AgentAdapter {
@@ -15,5 +11,5 @@ export interface AgentAdapter {
   send(message: string): Promise<void>;
   stop(): Promise<void>;
   getStatus(): AgentStatus;
-  onEvent(callback: (event: AgentEvent) => void): () => void;
+  onEvent(callback: (event: AgentOutputEvent) => void): () => void;
 }

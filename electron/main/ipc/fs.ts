@@ -263,6 +263,9 @@ export function registerFsHandlers(): void {
 
         const win = getMainWindow();
 
+        let eventBuffer: Array<{ type: string; path: string }> = [];
+        let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
         watcher.on('all', (eventType: string, filePath: string) => {
           if (!win || win.isDestroyed()) return;
           const mappedType =
@@ -271,10 +274,24 @@ export function registerFsHandlers(): void {
               : eventType === 'unlinkDir' || eventType === 'unlink'
                 ? 'unlink'
                 : 'change';
-          win.webContents.send(IPC_CHANNELS.FS_WATCH_EVENT, {
-            type: mappedType,
-            path: filePath,
-          });
+
+          eventBuffer.push({ type: mappedType, path: filePath });
+
+          if (!flushTimer) {
+            flushTimer = setTimeout(() => {
+              if (win && !win.isDestroyed()) {
+                const deduped = new Map<string, string>();
+                for (const ev of eventBuffer) {
+                  deduped.set(ev.path, ev.type);
+                }
+                for (const [path, type] of deduped) {
+                  win.webContents.send(IPC_CHANNELS.FS_WATCH_EVENT, { type, path });
+                }
+              }
+              eventBuffer = [];
+              flushTimer = null;
+            }, WATCHER_THROTTLE_MS);
+          }
         });
 
         return { data: { success: true } };

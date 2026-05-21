@@ -34,8 +34,9 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         disabled={disabled}
         rows={2}
         className="resize-none"
+        aria-label="Message input"
       />
-      <Button onClick={handleSend} disabled={disabled || !input.trim()} className="self-end">
+      <Button onClick={handleSend} disabled={disabled || !input.trim()} className="self-end" aria-label="Send message">
         发送
       </Button>
     </div>

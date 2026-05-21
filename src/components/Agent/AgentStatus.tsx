@@ -26,9 +26,17 @@ export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
   };
 
   return (
-    <div className="border-b px-4 py-2 flex items-center justify-between">
+    <div className="border-b px-4 py-2 flex items-center justify-between" role="toolbar" aria-label="Agent controls">
       <div className="flex items-center gap-2">
         <div
+          role="status"
+          aria-label={
+            status === 'running' ? 'Agent is running' :
+            status === 'starting' ? 'Agent is starting' :
+            status === 'error' ? 'Agent encountered an error' :
+            status === 'completed' ? 'Agent completed' :
+            'Agent is idle'
+          }
           className={cn(
             'w-2 h-2 rounded-full',
             status === 'running' && 'bg-green-500 animate-pulse',

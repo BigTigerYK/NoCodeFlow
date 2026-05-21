@@ -32,7 +32,7 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
   }
 
   return (
-    <div className="flex flex-col h-full border-l bg-background">
+    <div className="flex flex-col h-full border-l bg-background" role="log" aria-label="Agent conversation" aria-live="polite">
       <AgentStatusBar status={status} onStop={stopAgent} />
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 ? (

@@ -29,6 +29,18 @@ export function EditorTabs() {
     }
   };
 
+  const handleTabKeyDown = (e: React.KeyboardEvent, path: string) => {
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      const tab = openTabs.find((t) => t.path === path);
+      if (tab?.isDirty) {
+        setConfirmClose(path);
+      } else {
+        closeTab(path);
+      }
+    }
+  };
+
   const confirmCloseTab = () => {
     if (confirmClose) {
       closeTab(confirmClose);
@@ -38,28 +50,34 @@ export function EditorTabs() {
 
   return (
     <>
-      <div className="flex border-b bg-muted/20 overflow-x-auto">
+      <div className="flex border-b bg-muted/20 overflow-x-auto" role="tablist" aria-label="Editor tabs">
         {openTabs.map((tab) => (
           <div
             key={tab.path}
+            role="tab"
+            aria-selected={activeTabPath === tab.path}
+            tabIndex={activeTabPath === tab.path ? 0 : -1}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer border-r hover:bg-accent/50 shrink-0 group',
+              'flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer border-r hover:bg-accent/50 shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               activeTabPath === tab.path
                 ? 'bg-background border-b-2 border-b-primary'
                 : 'text-muted-foreground',
             )}
             onClick={() => setActiveTab(tab.path)}
+            onKeyDown={(e) => handleTabKeyDown(e, tab.path)}
           >
             <span className="truncate max-w-[120px]">{tab.name}</span>
             {tab.isDirty && (
-              <Circle className="h-2 w-2 fill-orange-500 text-orange-500 shrink-0" />
+              <Circle className="h-2 w-2 fill-orange-500 text-orange-500 shrink-0" aria-label="Unsaved changes" />
             )}
             <button
               className={cn(
-                'h-4 w-4 rounded-sm hover:bg-destructive/20 hover:text-destructive flex items-center justify-center shrink-0 opacity-0 group-hover:opacity-100',
+                'h-4 w-4 rounded-sm hover:bg-destructive/20 hover:text-destructive flex items-center justify-center shrink-0',
+                'opacity-60 group-hover:opacity-100',
                 activeTabPath === tab.path && 'opacity-100',
               )}
               onClick={(e) => handleClose(tab.path, e)}
+              aria-label={`Close ${tab.name}`}
             >
               <X className="h-3 w-3" />
             </button>

@@ -122,7 +122,7 @@ export function registerFsHandlers(): void {
         if (!stat.isDirectory()) {
           return { error: 'Path is not a directory' };
         }
-        currentWorkspaceRoot = path.resolve(rootPath);
+        currentWorkspaceRoot = await fs.realpath(rootPath);
         const tree = await buildFileTree(rootPath, maxDepth);
         return { data: tree };
       } catch (err: any) {
@@ -149,7 +149,16 @@ export function registerFsHandlers(): void {
             return { error: 'Access denied: symlink points outside workspace' };
           }
         } catch {
-          // File doesn't exist yet - that's fine for read, the read will fail naturally
+          // File doesn't exist - check parent directory
+          const parentDir = path.dirname(filePath);
+          try {
+            const realParent = await fs.realpath(parentDir);
+            if (!isPathWithinWorkspace(realParent, currentWorkspaceRoot)) {
+              return { error: 'Access denied: parent directory outside workspace' };
+            }
+          } catch {
+            // Parent doesn't exist either - read will fail naturally
+          }
         }
         const stat = await fs.stat(filePath);
 
@@ -220,6 +229,14 @@ export function registerFsHandlers(): void {
         const { dirPath } = args;
         if (!currentWorkspaceRoot || !isPathWithinWorkspace(dirPath, currentWorkspaceRoot)) {
           return { error: 'Access denied: path is outside workspace' };
+        }
+        try {
+          const realDirPath = await fs.realpath(dirPath);
+          if (!isPathWithinWorkspace(realDirPath, currentWorkspaceRoot)) {
+            return { error: 'Access denied: symlink points outside workspace' };
+          }
+        } catch {
+          return { error: 'Directory does not exist' };
         }
 
         // Clean up existing watcher

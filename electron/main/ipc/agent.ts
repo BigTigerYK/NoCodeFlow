@@ -1,8 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '@shared/types/ipc';
-import type { ClaudeProfile } from '@shared/types/config';
 import { ClaudeAdapter } from '../agent';
-import { configStore } from '../store/config';
+import { configStore, decryptApiKeys } from '../store/config';
 
 let adapter: ClaudeAdapter | null = null;
 
@@ -16,9 +15,11 @@ export function registerAgentHandlers(): void {
       adapter.destroy();
     }
 
-    // Read active profile from config
-    const profiles = (configStore.get('claude.profiles', []) as ClaudeProfile[]);
-    const activeId = configStore.get('claude.activeProfileId', null) as string | null;
+    // Read active profile from config (decrypt API keys)
+    const fullConfig = configStore.store;
+    const decrypted = decryptApiKeys(fullConfig);
+    const profiles = decrypted.claude.profiles;
+    const activeId = decrypted.claude.activeProfileId;
     const activeProfile = profiles.find(p => p.id === activeId);
 
     adapter = new ClaudeAdapter({

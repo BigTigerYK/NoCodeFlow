@@ -204,7 +204,7 @@ export function registerFsHandlers(): void {
               : eventType === 'unlinkDir' || eventType === 'unlink'
                 ? 'unlink'
                 : 'change';
-          win.webContents.send(IPC_CHANNELS.FS_WATCH, {
+          win.webContents.send(IPC_CHANNELS.FS_WATCH_EVENT, {
             type: mappedType,
             path: filePath,
           });

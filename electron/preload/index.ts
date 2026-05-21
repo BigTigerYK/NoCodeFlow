@@ -14,7 +14,7 @@ const api = {
     const allowedChannels = [
       IPC_CHANNELS.AGENT_OUTPUT,
       IPC_CHANNELS.AGENT_STATUS,
-      IPC_CHANNELS.FS_WATCH,
+      IPC_CHANNELS.FS_WATCH_EVENT,
       IPC_CHANNELS.PERMISSION_REQUEST,
     ];
     if (allowedChannels.includes(channel as any)) {

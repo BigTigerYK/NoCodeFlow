@@ -5,6 +5,7 @@ export const IPC_CHANNELS = {
   FS_TREE: 'fs:tree',
   FS_OPEN_DIALOG: 'fs:open-dialog',
   FS_WATCH: 'fs:watch',
+  FS_WATCH_EVENT: 'fs:watch-event',
   FS_UNWATCH: 'fs:unwatch',
 
   // 配置

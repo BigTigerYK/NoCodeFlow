@@ -56,6 +56,7 @@ const EXTENSION_LANGUAGE_MAP: Record<string, FileType> = {
   '.vue': 'html',
   '.svelte': 'html',
   '.env': 'shell',
+  '.dockerfile': 'dockerfile',
 };
 
 const EXTENSION_ICON_MAP: Record<string, FileIconType> = {

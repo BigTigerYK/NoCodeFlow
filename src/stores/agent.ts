@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import type { AgentOutputEvent } from '@shared/types/agent';
+import type { AppConfig } from '@shared/types/config';
 import { agentEventBus } from '@/lib/event-bus';
 import { TimelineBuilder } from '@/lib/timeline-builder';
 import type { TimelineEntry, ToolUseEntry, ToolResultEntry, ResultEntry } from '@/lib/output-parser';
@@ -57,9 +58,16 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     _outputUnsub?.();
     _statusUnsub?.();
 
+    // Read permission mode from config
+    const config = await window.api.invoke(IPC_CHANNELS.CONFIG_GET_ALL) as AppConfig;
+    const permissionMode = config.permissions?.mode ?? 'default';
+
+    // Initialize permission manager in main process
+    await window.api.invoke(IPC_CHANNELS.PERMISSION_INIT, workspacePath);
+
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_START, {
       workspacePath,
-      permissionMode: 'default',
+      permissionMode,
     }) as { success: boolean; version?: string; error?: string };
 
     if (result.success) {

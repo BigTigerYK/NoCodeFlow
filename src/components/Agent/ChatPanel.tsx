@@ -1,10 +1,12 @@
 import { useRef, useEffect, useMemo } from 'react';
 import { useAgentStore } from '@/stores/agent';
+import { usePermissionStore } from '@/stores/permission';
 import { AgentStatusBar } from './AgentStatus';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { AgentUnavailableNotice } from './AgentUnavailableNotice';
 import { TimelinePanel } from './Timeline';
+import { PermissionDialog } from '@/components/Permission';
 import type { ToolUseEntry } from '@/lib/output-parser';
 
 interface ChatPanelProps {
@@ -14,6 +16,7 @@ interface ChatPanelProps {
 export function ChatPanel({ workspacePath }: ChatPanelProps) {
   const { messages, timelineEntries, status, isAvailable, sendMessage, stopAgent, initialize } =
     useAgentStore();
+  const { initialize: initPermission, dispose: disposePermission } = usePermissionStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
 
@@ -32,8 +35,10 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
     if (!initializedRef.current && workspacePath) {
       initializedRef.current = true;
       initialize(workspacePath);
+      initPermission();
     }
-  }, [workspacePath, initialize]);
+    return () => { disposePermission(); };
+  }, [workspacePath, initialize, initPermission, disposePermission]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -78,6 +83,8 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
       )}
 
       <ChatInput onSend={sendMessage} disabled={status === 'running'} />
+
+      <PermissionDialog />
     </div>
   );
 }

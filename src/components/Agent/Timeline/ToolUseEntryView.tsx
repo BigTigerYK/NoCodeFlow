@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ShieldCheck, ShieldAlert, ShieldX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToolIcon } from './ToolIcon';
 import { StatusBadge } from './StatusBadge';
-import type { ToolUseEntry, ToolResultEntry } from '@/lib/output-parser';
+import type { ToolUseEntry, ToolResultEntry, PermissionStatus } from '@/lib/output-parser';
 
 interface ToolUseEntryViewProps {
   entry: ToolUseEntry;
@@ -23,6 +23,7 @@ export function ToolUseEntryView({ entry, result }: ToolUseEntryViewProps) {
       >
         <ToolIcon name={entry.toolName} className="w-4 h-4 shrink-0 text-muted-foreground" />
         <span className="flex-1 text-sm truncate">{entry.description}</span>
+        {entry.permissionStatus && <PermissionBadge status={entry.permissionStatus} />}
         <StatusBadge status={status} />
         <ChevronRight
           className={cn('w-4 h-4 shrink-0 text-muted-foreground transition-transform', expanded && 'rotate-90')}
@@ -56,5 +57,20 @@ export function ToolUseEntryView({ entry, result }: ToolUseEntryViewProps) {
         </div>
       )}
     </div>
+  );
+}
+
+function PermissionBadge({ status }: { status: PermissionStatus }) {
+  const config: Record<PermissionStatus, { icon: typeof ShieldCheck; color: string; label: string }> = {
+    auto_allowed: { icon: ShieldCheck, color: 'text-green-500', label: '自动允许' },
+    confirmed: { icon: ShieldCheck, color: 'text-blue-500', label: '已确认' },
+    denied: { icon: ShieldX, color: 'text-destructive', label: '已拒绝' },
+    pending: { icon: ShieldAlert, color: 'text-yellow-500', label: '待确认' },
+  };
+  const { icon: Icon, color, label } = config[status];
+  return (
+    <span className={cn('flex items-center gap-1 text-xs shrink-0', color)} title={label}>
+      <Icon className="w-3.5 h-3.5" />
+    </span>
   );
 }

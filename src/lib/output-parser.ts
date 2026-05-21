@@ -14,12 +14,15 @@ export interface TextEntry extends TimelineEntryBase {
   isStreaming: boolean;
 }
 
+export type PermissionStatus = 'auto_allowed' | 'confirmed' | 'denied' | 'pending';
+
 export interface ToolUseEntry extends TimelineEntryBase {
   kind: 'tool_use';
   toolName: string;
   toolId: string;
   input: Record<string, unknown>;
   description: string;
+  permissionStatus?: PermissionStatus;
 }
 
 export interface ToolResultEntry extends TimelineEntryBase {

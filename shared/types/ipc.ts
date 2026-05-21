@@ -24,9 +24,13 @@ export const IPC_CHANNELS = {
   AGENT_STOP: 'agent:stop',
   AGENT_STATUS: 'agent:status',
 
-  // 权限（预留）
+  // 权限
   PERMISSION_REQUEST: 'permission:request',
   PERMISSION_RESPONSE: 'permission:response',
+  PERMISSION_INIT: 'permission:init',
+  PERMISSION_UPDATE_WORKSPACE: 'permission:updateWorkspace',
+  PERMISSION_GET_RECORDS: 'permission:getRecords',
+  PERMISSION_RESPOND: 'permission:respond',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

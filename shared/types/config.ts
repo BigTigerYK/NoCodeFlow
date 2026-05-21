@@ -21,6 +21,12 @@ export interface AppConfig {
     profiles: ClaudeProfile[];
     activeProfileId: string | null;
   };
+  permissions: {
+    mode: 'default' | 'auto';
+    allowFileWrite: boolean;
+    allowCommandExecute: boolean;
+    rememberDuration: 'session' | 'always';
+  };
   recentWorkspaces: string[];
 }
 
@@ -38,6 +44,12 @@ export const DEFAULT_CONFIG: AppConfig = {
   claude: {
     profiles: [],
     activeProfileId: null,
+  },
+  permissions: {
+    mode: 'default',
+    allowFileWrite: false,
+    allowCommandExecute: false,
+    rememberDuration: 'session',
   },
   recentWorkspaces: [],
 };

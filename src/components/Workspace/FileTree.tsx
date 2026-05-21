@@ -44,7 +44,7 @@ export function FileTree() {
       </div>
       <ScrollArea className="flex-1">
         {fileTree.length > 0 ? (
-          <div className="py-1">
+          <div className="py-1" role="tree" aria-label="File explorer">
             {fileTree.map((node) => (
               <FileTreeNode key={node.path} node={node} depth={0} />
             ))}

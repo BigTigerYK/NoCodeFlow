@@ -59,6 +59,21 @@ export const FileTreeNode = memo(function FileTreeNode({
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleClick();
+    }
+    if (isDir && e.key === 'ArrowRight' && !isExpanded) {
+      e.preventDefault();
+      toggleExpand(node.path);
+    }
+    if (isDir && e.key === 'ArrowLeft' && isExpanded) {
+      e.preventDefault();
+      toggleExpand(node.path);
+    }
+  };
+
   const Icon = isDir
     ? isExpanded
       ? FolderOpen
@@ -66,14 +81,19 @@ export const FileTreeNode = memo(function FileTreeNode({
     : getFileIcon(node.name);
 
   return (
-    <div>
+    <div role="group">
       <div
+        role="treeitem"
+        aria-expanded={isDir ? isExpanded : undefined}
+        aria-selected={isSelected}
+        tabIndex={0}
         className={cn(
-          'flex items-center gap-1 px-2 py-0.5 cursor-pointer text-sm hover:bg-accent/50 select-none',
+          'flex items-center gap-1 px-2 py-0.5 cursor-pointer text-sm hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
           isSelected && 'bg-accent',
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
       >
         {isDir ? (
           isExpanded ? (
@@ -93,7 +113,7 @@ export const FileTreeNode = memo(function FileTreeNode({
         <span className="truncate">{node.name}</span>
       </div>
       {isDir && isExpanded && node.children && (
-        <div>
+        <div role="group">
           {node.children.map((child) => (
             <FileTreeNode key={child.path} node={child} depth={depth + 1} />
           ))}

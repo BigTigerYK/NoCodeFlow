@@ -17,6 +17,9 @@ interface AgentState {
   messages: AgentMessage[];
   currentInput: string;
 
+  _outputUnsub: (() => void) | null;
+  _statusUnsub: (() => void) | null;
+
   initialize: (workspacePath: string) => Promise<boolean>;
   sendMessage: (message: string) => Promise<void>;
   stopAgent: () => Promise<void>;
@@ -35,8 +38,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   cliVersion: null,
   messages: [],
   currentInput: '',
+  _outputUnsub: null,
+  _statusUnsub: null,
 
   initialize: async (workspacePath: string) => {
+    // Clean up previous listeners
+    const { _outputUnsub, _statusUnsub } = get();
+    _outputUnsub?.();
+    _statusUnsub?.();
+
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_START, {
       workspacePath,
       permissionMode: 'default',
@@ -45,18 +55,20 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     if (result.success) {
       set({ isAvailable: true, cliVersion: result.version ?? null });
 
-      window.api.on(IPC_CHANNELS.AGENT_OUTPUT, (event: unknown) => {
+      const unsubOutput = window.api.on(IPC_CHANNELS.AGENT_OUTPUT, (event: unknown) => {
         get()._handleOutputEvent(event as AgentOutputEvent);
       });
 
-      window.api.on(IPC_CHANNELS.AGENT_STATUS, (data: unknown) => {
+      const unsubStatus = window.api.on(IPC_CHANNELS.AGENT_STATUS, (data: unknown) => {
         const { status } = data as { status: string };
         get()._updateStatus(status as AgentState['status']);
       });
 
+      set({ _outputUnsub: unsubOutput, _statusUnsub: unsubStatus });
+
       return true;
     } else {
-      set({ isAvailable: false });
+      set({ isAvailable: false, _outputUnsub: null, _statusUnsub: null });
       get()._addMessage({
         id: crypto.randomUUID(),
         role: 'system',

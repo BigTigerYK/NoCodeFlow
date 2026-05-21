@@ -16,6 +16,7 @@ export class ClaudeAdapter {
   private onOutputCallback: ((event: AgentOutputEvent) => void) | null = null;
   private onStatusCallback: ((status: AgentStatus) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
+  private killTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(options: ClaudeAdapterOptions) {
     this.options = {
@@ -146,18 +147,31 @@ export class ClaudeAdapter {
   }
 
   async stop(): Promise<void> {
-    if (this.currentProcess) {
-      this.currentProcess.kill('SIGTERM');
-
-      setTimeout(() => {
-        if (this.currentProcess) {
-          this.currentProcess.kill('SIGKILL');
-          this.currentProcess = null;
-        }
-      }, AGENT_SIGKILL_DELAY_MS);
-
-      this.setStatus('idle');
+    if (this.killTimer) {
+      clearTimeout(this.killTimer);
+      this.killTimer = null;
     }
+
+    if (this.currentProcess) {
+      const proc = this.currentProcess;
+      this.currentProcess = null;
+
+      return new Promise<void>((resolve) => {
+        proc.on('close', () => {
+          this.setStatus('idle');
+          resolve();
+        });
+
+        proc.kill('SIGTERM');
+
+        this.killTimer = setTimeout(() => {
+          try { proc.kill('SIGKILL'); } catch { /* already dead */ }
+          this.killTimer = null;
+        }, AGENT_SIGKILL_DELAY_MS);
+      });
+    }
+
+    this.setStatus('idle');
   }
 
   getStatus(): AgentStatus {
@@ -169,7 +183,14 @@ export class ClaudeAdapter {
   }
 
   destroy(): void {
-    this.stop();
+    if (this.killTimer) {
+      clearTimeout(this.killTimer);
+      this.killTimer = null;
+    }
+    if (this.currentProcess) {
+      this.currentProcess.kill('SIGKILL');
+      this.currentProcess = null;
+    }
     this.onOutputCallback = null;
     this.onStatusCallback = null;
     this.onErrorCallback = null;

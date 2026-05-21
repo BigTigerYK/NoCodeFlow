@@ -1,6 +1,6 @@
 import { spawn, ChildProcess } from 'child_process';
 import { AGENT_DEFAULT_TIMEOUT_MS, AGENT_DEFAULT_MAX_TURNS, AGENT_CLI_VERSION_TIMEOUT_MS, AGENT_SIGKILL_DELAY_MS } from '@shared/constants';
-import type { AgentStatus, AgentOutputEvent, ClaudeAdapterOptions, AvailabilityResult } from './types';
+import type { AgentStatus, AgentOutputEvent, TextDeltaData, ToolUseData, ToolResultData, ErrorData, ResultData, SystemData, ClaudeAdapterOptions, AvailabilityResult } from './types';
 
 export class ClaudeAdapter {
   private sessionId: string | null = null;
@@ -94,13 +94,13 @@ export class ClaudeAdapter {
           const json = JSON.parse(line);
           this.handleStreamEvent(json);
         } catch {
-          this.emitOutput({ type: 'text', data: line, timestamp: Date.now() });
+          this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: line } }, timestamp: Date.now() });
         }
       }
     });
 
     this.currentProcess.stderr?.on('data', (data: Buffer) => {
-      this.emitOutput({ type: 'error', data: data.toString(), timestamp: Date.now() });
+      this.emitOutput({ type: 'error', data: { error: data.toString() }, timestamp: Date.now() });
     });
 
     return new Promise<void>((resolve, reject) => {
@@ -117,7 +117,7 @@ export class ClaudeAdapter {
             const json = JSON.parse(outputBuffer);
             this.handleStreamEvent(json);
           } catch {
-            this.emitOutput({ type: 'text', data: outputBuffer, timestamp: Date.now() });
+            this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: outputBuffer } }, timestamp: Date.now() });
           }
         }
 
@@ -195,22 +195,22 @@ export class ClaudeAdapter {
       case 'content_block_start':
       case 'content_block_delta':
       case 'content_block_stop':
-        this.emitOutput({ type: 'text', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'text', data: json as unknown as TextDeltaData, timestamp: Date.now() });
         break;
       case 'tool_use':
-        this.emitOutput({ type: 'tool_use', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'tool_use', data: json as unknown as ToolUseData, timestamp: Date.now() });
         break;
       case 'tool_result':
-        this.emitOutput({ type: 'tool_result', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'tool_result', data: json as unknown as ToolResultData, timestamp: Date.now() });
         break;
       case 'error':
-        this.emitOutput({ type: 'error', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'error', data: json as unknown as ErrorData, timestamp: Date.now() });
         break;
       case 'result':
-        this.emitOutput({ type: 'result', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'result', data: json as unknown as ResultData, timestamp: Date.now() });
         break;
       default:
-        this.emitOutput({ type: 'system', data: json, timestamp: Date.now() });
+        this.emitOutput({ type: 'system', data: json as unknown as SystemData, timestamp: Date.now() });
     }
   }
 }

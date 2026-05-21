@@ -1,6 +1,6 @@
-import type { AgentStatus, AgentOutputEvent } from '@shared/types/agent';
+import type { AgentStatus, AgentOutputEvent, TextDeltaData, ToolUseData, ToolResultData, ErrorData, ResultData, SystemData } from '@shared/types/agent';
 
-export type { AgentStatus, AgentOutputEvent };
+export type { AgentStatus, AgentOutputEvent, TextDeltaData, ToolUseData, ToolResultData, ErrorData, ResultData, SystemData };
 
 export interface ClaudeAdapterOptions {
   workspacePath: string;

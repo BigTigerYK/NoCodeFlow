@@ -116,23 +116,28 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const { type, data } = event;
     switch (type) {
       case 'text':
-        if (data && typeof data === 'object' && 'delta' in data) {
-          const delta = (data as Record<string, unknown>).delta as Record<string, unknown>;
-          if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
-            get()._appendAssistantContent(delta.text);
-          }
+        if (data.delta?.type === 'text_delta' && typeof data.delta.text === 'string') {
+          get()._appendAssistantContent(data.delta.text);
         }
+        break;
+      case 'tool_use':
+        get()._addMessage({
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: `\`tool_use\` ${data.name ?? ''}`,
+          timestamp: Date.now(),
+        });
         break;
       case 'error':
         get()._addMessage({
           id: crypto.randomUUID(),
           role: 'error',
-          content: typeof data === 'string' ? data : JSON.stringify(data),
+          content: data.error || data.message || JSON.stringify(data),
           timestamp: Date.now(),
         });
         break;
       case 'result':
-      case 'tool_use':
+        break;
       case 'tool_result':
       case 'system':
         break;

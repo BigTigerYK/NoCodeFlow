@@ -1,5 +1,7 @@
 import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { ToolUseEntryView } from './Timeline/ToolUseEntryView';
+import { ResultEntryView } from './Timeline/ResultEntryView';
 import type { AgentMessage } from '@/stores/agent';
 
 interface MessageBubbleProps {
@@ -7,9 +9,29 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === 'user';
-  const isError = message.role === 'error';
-  const isSystem = message.role === 'system';
+  const { role } = message;
+
+  // Tool use — rendered as a Timeline card
+  if (role === 'tool_use' && message.toolEntry) {
+    return (
+      <div className="my-1">
+        <ToolUseEntryView entry={message.toolEntry} result={message.toolResult} />
+      </div>
+    );
+  }
+
+  // Final result
+  if (role === 'result' && message.resultEntry) {
+    return (
+      <div className="my-1">
+        <ResultEntryView entry={message.resultEntry} />
+      </div>
+    );
+  }
+
+  const isUser = role === 'user';
+  const isError = role === 'error';
+  const isSystem = role === 'system';
 
   return (
     <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>

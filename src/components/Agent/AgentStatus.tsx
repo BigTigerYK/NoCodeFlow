@@ -8,15 +8,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import { useConfig } from '@/hooks/useConfig';
+import { ToolIcon } from './Timeline/ToolIcon';
 
 interface AgentStatusBarProps {
   status: 'idle' | 'starting' | 'running' | 'error' | 'completed';
   onStop: () => void;
+  currentTool?: string;
 }
 
-export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
+export function AgentStatusBar({ status, onStop, currentTool }: AgentStatusBarProps) {
   const { config, updateConfig } = useConfig();
   const { profiles, activeProfileId } = config.claude;
   const activeProfile = profiles.find(p => p.id === activeProfileId);
@@ -24,6 +26,19 @@ export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
   const handleSwitchProfile = (id: string) => {
     updateConfig('claude', { ...config.claude, activeProfileId: id });
   };
+
+  const statusLabel =
+    status === 'running'
+      ? currentTool
+        ? `正在${currentTool}...`
+        : 'Agent 运行中...'
+      : status === 'starting'
+        ? '正在启动...'
+        : status === 'error'
+          ? '发生错误'
+          : status === 'completed'
+            ? '已完成'
+            : '就绪';
 
   return (
     <div className="border-b px-4 py-2 flex items-center justify-between" role="toolbar" aria-label="Agent controls">
@@ -38,7 +53,7 @@ export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
             'Agent is idle'
           }
           className={cn(
-            'w-2 h-2 rounded-full',
+            'w-2 h-2 rounded-full shrink-0',
             status === 'running' && 'bg-green-500 animate-pulse',
             status === 'starting' && 'bg-yellow-500 animate-pulse',
             status === 'idle' && 'bg-gray-400',
@@ -51,9 +66,16 @@ export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                <span className="truncate max-w-[140px]">
-                  {activeProfile?.name ?? '未选择方案'}
-                </span>
+                {status === 'running' && currentTool ? (
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <ToolIcon name={currentTool} className="w-3.5 h-3.5" />
+                    <span className="truncate max-w-[160px]">{statusLabel}</span>
+                  </span>
+                ) : (
+                  <span className="truncate max-w-[140px]">
+                    {activeProfile?.name ?? '未选择方案'}
+                  </span>
+                )}
                 <ChevronDown className="h-3 w-3 shrink-0" />
               </button>
             </DropdownMenuTrigger>
@@ -87,16 +109,14 @@ export function AgentStatusBar({ status, onStop }: AgentStatusBarProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <span className="text-sm text-muted-foreground">
-            {status === 'running'
-              ? 'Agent 运行中...'
-              : status === 'starting'
-                ? '正在启动...'
-                : status === 'error'
-                  ? '发生错误'
-                  : status === 'completed'
-                    ? '已完成'
-                    : '就绪'}
+          <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+            {status === 'running' && currentTool && (
+              <ToolIcon name={currentTool} className="w-3.5 h-3.5" />
+            )}
+            {status === 'running' && !currentTool && (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            )}
+            {statusLabel}
           </span>
         )}
       </div>

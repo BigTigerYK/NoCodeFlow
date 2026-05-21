@@ -46,6 +46,7 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
     }
     return false;
   } catch {
+    // Can't read file header - assume binary to be safe
     return true;
   }
 }
@@ -60,7 +61,8 @@ async function buildFileTree(
   let entries: string[];
   try {
     entries = await fs.readdir(dirPath);
-  } catch {
+  } catch (err: any) {
+    console.warn(`Failed to read directory ${dirPath}:`, err.message);
     return [];
   }
 

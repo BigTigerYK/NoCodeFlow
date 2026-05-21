@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { FileNode } from '@shared/types/workspace';
+import type { AppConfig } from '@shared/types/config';
 import { MAX_RECENT_WORKSPACES } from '@shared/constants';
 import { getLanguageForFile } from '@shared/utils/file-extensions';
 
@@ -95,12 +96,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       const config = (await window.api.invoke(
         IPC_CHANNELS.CONFIG_GET_ALL,
-      )) as any;
+      )) as AppConfig;
       const recent: string[] = config?.recentWorkspaces || [];
       const updated = [dirPath, ...recent.filter((p: string) => p !== dirPath)].slice(0, MAX_RECENT_WORKSPACES);
       await window.api.invoke(IPC_CHANNELS.CONFIG_SET, 'recentWorkspaces', updated);
-    } catch {
-      // non-critical
+    } catch (err) {
+      console.warn('Failed to update recent workspaces:', err);
     }
   },
 

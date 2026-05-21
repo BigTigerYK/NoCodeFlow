@@ -41,11 +41,3 @@ export interface ResultData {
 export interface SystemData {
   [key: string]: unknown;
 }
-
-export interface AgentAdapter {
-  start(task: string, workspacePath: string): Promise<void>;
-  send(message: string): Promise<void>;
-  stop(): Promise<void>;
-  getStatus(): AgentStatus;
-  onEvent(callback: (event: AgentOutputEvent) => void): () => void;
-}

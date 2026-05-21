@@ -12,38 +12,22 @@ import {
   Settings,
 } from 'lucide-react';
 import { FileNode } from '@shared/types/workspace';
+import { getIconTypeForFile } from '@shared/utils/file-extensions';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
 
 function getFileIcon(name: string) {
-  const ext = name.split('.').pop()?.toLowerCase() || '';
-  switch (ext) {
-    case 'ts':
-    case 'tsx':
-    case 'js':
-    case 'jsx':
+  const iconType = getIconTypeForFile(name);
+  switch (iconType) {
+    case 'code':
       return FileCode;
     case 'json':
       return FileJson;
-    case 'md':
-    case 'mdx':
+    case 'markdown':
       return FileType;
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-    case 'webp':
+    case 'image':
       return Image;
-    case 'css':
-    case 'scss':
-    case 'less':
-    case 'html':
-      return FileCode;
-    case 'yaml':
-    case 'yml':
-    case 'toml':
-    case 'ini':
+    case 'config':
       return Settings;
     default:
       return FileText;

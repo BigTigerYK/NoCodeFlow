@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { FileNode } from '@shared/types/workspace';
 import { MAX_RECENT_WORKSPACES } from '@shared/constants';
+import { getLanguageForFile } from '@shared/utils/file-extensions';
 
 export interface TabInfo {
   path: string;
@@ -36,46 +37,6 @@ interface WorkspaceState {
   updateTabContent: (path: string, content: string) => void;
   saveFile: (path: string) => Promise<void>;
   saveActiveFile: () => Promise<void>;
-}
-
-const LANGUAGE_MAP: Record<string, string> = {
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.js': 'javascript',
-  '.jsx': 'javascript',
-  '.json': 'json',
-  '.md': 'markdown',
-  '.css': 'css',
-  '.scss': 'scss',
-  '.less': 'less',
-  '.html': 'html',
-  '.htm': 'html',
-  '.py': 'python',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.java': 'java',
-  '.c': 'c',
-  '.cpp': 'cpp',
-  '.h': 'c',
-  '.hpp': 'cpp',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.sh': 'shell',
-  '.bash': 'shell',
-  '.sql': 'sql',
-  '.xml': 'xml',
-  '.toml': 'toml',
-  '.ini': 'ini',
-  '.env': 'shell',
-  '.dockerfile': 'dockerfile',
-  '.graphql': 'graphql',
-  '.vue': 'html',
-  '.svelte': 'html',
-};
-
-function getLanguage(filePath: string): string {
-  const ext = '.' + filePath.split('.').pop()?.toLowerCase();
-  return LANGUAGE_MAP[ext] || 'plaintext';
 }
 
 interface InvokeResult<T = unknown> {
@@ -209,7 +170,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       content: result.content,
       originalContent: result.content,
       isDirty: false,
-      language: getLanguage(filePath),
+      language: getLanguageForFile(filePath),
     };
 
     set({

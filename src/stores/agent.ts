@@ -78,6 +78,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     });
     set({ currentInput: '' });
 
+    const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
+
+    if (!result.success) {
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'error',
+        content: result.error ?? 'Failed to send message',
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
     get()._addMessage({
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -85,8 +97,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       timestamp: Date.now(),
       rawEvents: [],
     });
-
-    await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message);
   },
 
   stopAgent: async () => {

@@ -50,19 +50,16 @@ export function registerAgentHandlers(): void {
     return { success: true, version: availability.version };
   });
 
-  ipcMain.handle(IPC_CHANNELS.AGENT_SEND, async (event, message: string) => {
+  ipcMain.handle(IPC_CHANNELS.AGENT_SEND, async (_event, message: string) => {
     if (!adapter) {
-      throw new Error('Agent not started. Call AGENT_START first.');
+      return { success: false, error: 'Agent not started. Call AGENT_START first.' };
     }
-    adapter.send(message).catch((err) => {
-      const win = BrowserWindow.fromWebContents(event.sender);
-      win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, {
-        type: 'error',
-        data: err.message,
-        timestamp: Date.now(),
-      });
-    });
-    return { success: true };
+    try {
+      await adapter.send(message);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.AGENT_STOP, async () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { FolderOpen, Clock } from 'lucide-react';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { AppConfig } from '@shared/types/config';
+import { MAX_RECENT_WORKSPACES_DISPLAY } from '@shared/constants';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { Button } from '@/components/ui/button';
 
@@ -28,7 +29,7 @@ export function RecentWorkspaces() {
         <span>Recent Workspaces</span>
       </div>
       <div className="space-y-1">
-        {recentPaths.slice(0, 8).map((p) => {
+        {recentPaths.slice(0, MAX_RECENT_WORKSPACES_DISPLAY).map((p) => {
           const name = p.split(/[\\/]/).pop() || p;
           return (
             <Button

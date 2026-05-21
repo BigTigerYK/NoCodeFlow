@@ -1,4 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
+import { AGENT_DEFAULT_TIMEOUT_MS, AGENT_DEFAULT_MAX_TURNS, AGENT_CLI_VERSION_TIMEOUT_MS, AGENT_SIGKILL_DELAY_MS } from '@shared/constants';
 import type { AgentStatus, AgentOutputEvent, ClaudeAdapterOptions, AvailabilityResult } from './types';
 
 export class ClaudeAdapter {
@@ -16,8 +17,8 @@ export class ClaudeAdapter {
       workspacePath: options.workspacePath,
       model: options.model ?? '',
       permissionMode: options.permissionMode ?? 'default',
-      maxTurns: options.maxTurns ?? 100,
-      timeoutMs: options.timeoutMs ?? 5 * 60 * 1000,
+      maxTurns: options.maxTurns ?? AGENT_DEFAULT_MAX_TURNS,
+      timeoutMs: options.timeoutMs ?? AGENT_DEFAULT_TIMEOUT_MS,
       apiBaseUrl: options.apiBaseUrl ?? '',
       apiKey: options.apiKey ?? '',
     };
@@ -36,7 +37,7 @@ export class ClaudeAdapter {
 
   async checkAvailability(): Promise<AvailabilityResult> {
     return new Promise((resolve) => {
-      const proc = spawn('claude', ['--version'], { shell: true, timeout: 5000, env: this.buildEnv() });
+      const proc = spawn('claude', ['--version'], { shell: true, timeout: AGENT_CLI_VERSION_TIMEOUT_MS, env: this.buildEnv() });
       let stdout = '';
       proc.stdout?.on('data', (d) => { stdout += d.toString(); });
       proc.on('close', (code) => {
@@ -149,7 +150,7 @@ export class ClaudeAdapter {
           this.currentProcess.kill('SIGKILL');
           this.currentProcess = null;
         }
-      }, 3000);
+      }, AGENT_SIGKILL_DELAY_MS);
 
       this.setStatus('idle');
     }

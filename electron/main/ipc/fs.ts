@@ -4,6 +4,7 @@ import path from 'path';
 import chokidar from 'chokidar';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { FileNode } from '@shared/types/workspace';
+import { FILE_TREE_MAX_DEPTH, FILE_MAX_SIZE_BYTES, BINARY_CHECK_BUFFER_SIZE, WATCHER_STABILITY_THRESHOLD_MS, WATCHER_THROTTLE_MS } from '@shared/constants';
 import { getMainWindow } from '../window';
 
 const IGNORED_DIRS = new Set([
@@ -17,8 +18,6 @@ const IGNORED_DIRS = new Set([
   '.nocodeflow',
 ]);
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
 let watcher: chokidar.FSWatcher | null = null;
 
 export async function cleanupFsWatchers(): Promise<void> {
@@ -31,8 +30,8 @@ export async function cleanupFsWatchers(): Promise<void> {
 async function isBinaryFile(filePath: string): Promise<boolean> {
   try {
     const fd = await fs.open(filePath, 'r');
-    const buf = Buffer.alloc(8192);
-    const { bytesRead } = await fd.read(buf, 0, 8192, 0);
+    const buf = Buffer.alloc(BINARY_CHECK_BUFFER_SIZE);
+    const { bytesRead } = await fd.read(buf, 0, BINARY_CHECK_BUFFER_SIZE, 0);
     await fd.close();
 
     for (let i = 0; i < bytesRead; i++) {
@@ -46,7 +45,7 @@ async function isBinaryFile(filePath: string): Promise<boolean> {
 
 async function buildFileTree(
   dirPath: string,
-  maxDepth: number = 10,
+  maxDepth: number = FILE_TREE_MAX_DEPTH,
   currentDepth: number = 0,
 ): Promise<FileNode[]> {
   if (currentDepth >= maxDepth) return [];
@@ -111,7 +110,7 @@ export function registerFsHandlers(): void {
     IPC_CHANNELS.FS_TREE,
     async (_event, args: { rootPath: string; maxDepth?: number }) => {
       try {
-        const { rootPath, maxDepth = 10 } = args;
+        const { rootPath, maxDepth = FILE_TREE_MAX_DEPTH } = args;
         const stat = await fs.stat(rootPath);
         if (!stat.isDirectory()) {
           return { error: 'Path is not a directory' };
@@ -132,7 +131,7 @@ export function registerFsHandlers(): void {
         const { filePath } = args;
         const stat = await fs.stat(filePath);
 
-        if (stat.size > MAX_FILE_SIZE) {
+        if (stat.size > FILE_MAX_SIZE_BYTES) {
           return { error: 'File too large (max 10MB)' };
         }
 
@@ -190,8 +189,8 @@ export function registerFsHandlers(): void {
           persistent: true,
           ignoreInitial: true,
           awaitWriteFinish: {
-            stabilityThreshold: 300,
-            pollInterval: 100,
+            stabilityThreshold: WATCHER_STABILITY_THRESHOLD_MS,
+            pollInterval: WATCHER_THROTTLE_MS,
           },
         });
 

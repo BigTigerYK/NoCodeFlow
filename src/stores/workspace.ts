@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { FileNode } from '@shared/types/workspace';
+import { MAX_RECENT_WORKSPACES } from '@shared/constants';
 
 export interface TabInfo {
   path: string;
@@ -135,7 +136,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         IPC_CHANNELS.CONFIG_GET_ALL,
       )) as any;
       const recent: string[] = config?.recentWorkspaces || [];
-      const updated = [dirPath, ...recent.filter((p: string) => p !== dirPath)].slice(0, 10);
+      const updated = [dirPath, ...recent.filter((p: string) => p !== dirPath)].slice(0, MAX_RECENT_WORKSPACES);
       await window.api.invoke(IPC_CHANNELS.CONFIG_SET, 'recentWorkspaces', updated);
     } catch {
       // non-critical

@@ -143,6 +143,14 @@ export function registerFsHandlers(): void {
         if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
           return { error: 'Access denied: path is outside workspace' };
         }
+        try {
+          const realPath = await fs.realpath(filePath);
+          if (!isPathWithinWorkspace(realPath, currentWorkspaceRoot)) {
+            return { error: 'Access denied: symlink points outside workspace' };
+          }
+        } catch {
+          // File doesn't exist yet - that's fine for read, the read will fail naturally
+        }
         const stat = await fs.stat(filePath);
 
         if (stat.size > FILE_MAX_SIZE_BYTES) {
@@ -173,6 +181,23 @@ export function registerFsHandlers(): void {
         if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
           return { error: 'Access denied: path is outside workspace' };
         }
+        try {
+          const realPath = await fs.realpath(filePath);
+          if (!isPathWithinWorkspace(realPath, currentWorkspaceRoot)) {
+            return { error: 'Access denied: symlink points outside workspace' };
+          }
+        } catch {
+          // File doesn't exist yet - check parent directory
+          const parentDir = path.dirname(filePath);
+          try {
+            const realParent = await fs.realpath(parentDir);
+            if (!isPathWithinWorkspace(realParent, currentWorkspaceRoot)) {
+              return { error: 'Access denied: parent directory outside workspace' };
+            }
+          } catch {
+            // Parent doesn't exist either - will fail on write
+          }
+        }
         const dir = path.dirname(filePath);
         await fs.mkdir(dir, { recursive: true });
 
@@ -193,6 +218,9 @@ export function registerFsHandlers(): void {
     async (_event, args: { dirPath: string }) => {
       try {
         const { dirPath } = args;
+        if (!currentWorkspaceRoot || !isPathWithinWorkspace(dirPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
 
         // Clean up existing watcher
         if (watcher) {

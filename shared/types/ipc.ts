@@ -7,6 +7,10 @@ export const IPC_CHANNELS = {
   FS_WATCH: 'fs:watch',
   FS_WATCH_EVENT: 'fs:watch-event',
   FS_UNWATCH: 'fs:unwatch',
+  FS_CREATE_FILE: 'fs:create-file',
+  FS_CREATE_DIR: 'fs:create-dir',
+  FS_DELETE: 'fs:delete',
+  FS_RENAME: 'fs:rename',
 
   // 配置
   CONFIG_GET: 'config:get',
@@ -31,6 +35,12 @@ export const IPC_CHANNELS = {
   PERMISSION_UPDATE_WORKSPACE: 'permission:updateWorkspace',
   PERMISSION_GET_RECORDS: 'permission:getRecords',
   PERMISSION_RESPOND: 'permission:respond',
+
+  // 快照
+  SNAPSHOT_LIST: 'snapshot:list',
+  SNAPSHOT_GET: 'snapshot:get',
+  SNAPSHOT_RESTORE: 'snapshot:restore',
+  SNAPSHOT_DELETE: 'snapshot:delete',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

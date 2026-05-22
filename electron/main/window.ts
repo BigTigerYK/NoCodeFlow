@@ -7,8 +7,8 @@ export function createMainWindow(): BrowserWindow {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 1000,
-    minHeight: 700,
+    minWidth: 900,
+    minHeight: 600,
     title: 'NoCodeFlow',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
@@ -22,6 +22,11 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
+  }
+
+  // Open DevTools in development
+  if (process.env.VITE_DEV_SERVER_URL) {
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

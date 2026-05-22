@@ -24,29 +24,75 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.625rem;
+
+    /* Semantic colors */
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --info: 199 89% 48%;
+    --info-foreground: 0 0% 100%;
+    --purple: 262 83% 58%;
+    --purple-foreground: 0 0% 100%;
+    --pink: 330 81% 60%;
+    --orange: 25 95% 53%;
+
+    /* Shadows */
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
 
   .dark {
-    --background: 230 33% 8%;
-    --foreground: 230 20% 92%;
-    --card: 230 25% 12%;
-    --card-foreground: 230 20% 92%;
-    --popover: 230 25% 12%;
-    --popover-foreground: 230 20% 92%;
+    /* Neutral palette - 对齐设计计划书 2.1 */
+    --background: 230 33% 7%;
+    --foreground: 230 30% 91%;
+    --card: 230 25% 13%;
+    --card-foreground: 230 30% 91%;
+    --popover: 230 25% 13%;
+    --popover-foreground: 230 30% 91%;
+
+    /* Brand - Accent Blue #6C8CFF */
     --primary: 227 100% 70%;
-    --primary-foreground: 230 33% 8%;
-    --secondary: 230 20% 18%;
-    --secondary-foreground: 230 20% 92%;
-    --muted: 230 18% 18%;
-    --muted-foreground: 230 12% 55%;
-    --accent: 230 20% 18%;
-    --accent-foreground: 230 20% 92%;
-    --destructive: 0 72% 65%;
-    --destructive-foreground: 230 20% 92%;
-    --border: 230 18% 23%;
-    --input: 230 18% 23%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Surface 2 #232735 */
+    --secondary: 230 21% 17%;
+    --secondary-foreground: 230 30% 91%;
+
+    /* Muted */
+    --muted: 230 21% 17%;
+    --muted-foreground: 230 16% 67%;
+
+    /* Accent */
+    --accent: 230 21% 17%;
+    --accent-foreground: 230 30% 91%;
+
+    /* Error #F87171 */
+    --destructive: 0 91% 71%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border #2D3148 */
+    --border: 230 21% 23%;
+    --input: 230 21% 23%;
     --ring: 227 100% 70%;
+
     --radius: 0.625rem;
+
+    /* Semantic colors - 设计计划书 2.1 */
+    --success: 142 71% 55%;
+    --success-foreground: 0 0% 100%;
+    --warning: 48 96% 53%;
+    --warning-foreground: 230 33% 7%;
+    --info: 189 83% 53%;
+    --info-foreground: 230 33% 7%;
+    --purple: 255 90% 76%;
+    --purple-foreground: 230 33% 7%;
+    --pink: 340 89% 71%;
+    --orange: 25 95% 61%;
+
+    /* Shadows */
+    --shadow: 0 4px 24px rgba(0, 0, 0, 0.25);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
 }
 
@@ -66,6 +112,99 @@
   code,
   pre {
     font-family: 'SF Mono', 'Cascadia Code', 'Consolas', 'Fira Code', monospace;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+/* Micro-interactions */
+@layer utilities {
+  .btn-press {
+    transition: all 0.2s ease;
+  }
+  .btn-press:active {
+    transform: scale(0.97);
+    filter: brightness(0.9);
+  }
+
+  .card-hover {
+    transition: all 0.2s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary));
+  }
+
+  .fade-in {
+    animation: fadeIn 0.2s ease;
+  }
+
+  .slide-in-right {
+    animation: slideInRight 0.3s ease;
+  }
+
+  .panel-expand {
+    animation: panelExpand 0.25s ease-out;
+  }
+
+  .panel-collapse {
+    animation: panelCollapse 0.2s ease-in;
+  }
+
+  .scale-in {
+    animation: scaleIn 0.2s ease-out;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes panelExpand {
+  from { opacity: 0; max-width: 0; }
+  to { opacity: 1; max-width: 500px; }
+}
+
+@keyframes panelCollapse {
+  from { opacity: 1; max-width: 500px; }
+  to { opacity: 0; max-width: 0; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Responsive breakpoints */
+@media (max-width: 1024px) {
+  .sidebar-nav-label {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .hide-on-mobile {
+    display: none;
   }
 }
 

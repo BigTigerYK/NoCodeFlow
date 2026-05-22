@@ -3,9 +3,19 @@ import { IPC_CHANNELS } from '@shared/types/ipc';
 import { ClaudeAdapter } from '../agent';
 import { configStore, decryptApiKeys } from '../store/config';
 import { getPermissionManager, waitForPermissionResponse, removePendingConfirmation } from './permission';
+import { getSnapshotManager, initSnapshotManager } from './snapshot';
 import type { AgentOutputEvent } from '@shared/types/agent';
 
 let adapter: ClaudeAdapter | null = null;
+
+async function snapshotBeforeModify(toolName: string, input: Record<string, unknown>): Promise<void> {
+  if ((toolName === 'Write' || toolName === 'Edit') && typeof input.file_path === 'string') {
+    const snapMgr = getSnapshotManager();
+    if (snapMgr) {
+      await snapMgr.createSnapshot(input.file_path, toolName as 'Write' | 'Edit', '');
+    }
+  }
+}
 
 async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOutputEvent): Promise<void> {
   // 非 tool_use 事件直接转发
@@ -16,6 +26,12 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
 
   const permManager = getPermissionManager();
   if (!permManager) {
+    // 无权限管理器时仍创建快照
+    const toolName = (outputEvent.data.name as string) || '';
+    const input = (typeof outputEvent.data.input === 'object' && outputEvent.data.input !== null
+      ? outputEvent.data.input
+      : {}) as Record<string, unknown>;
+    await snapshotBeforeModify(toolName, input);
     win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
     return;
   }
@@ -28,8 +44,9 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
 
   const result = await permManager.evaluate(toolName, input, toolId);
 
-  // 自动允许 — 直接转发
+  // 自动允许 — 创建快照后转发
   if (result.riskLevel === 'auto_allow') {
+    await snapshotBeforeModify(toolName, input);
     win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
     return;
   }
@@ -52,6 +69,7 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
     if (remembered !== null) {
       permManager.record(result.request, remembered ? 'allow' : 'deny', true);
       if (remembered) {
+        await snapshotBeforeModify(toolName, input);
         win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
       }
       return;
@@ -64,6 +82,7 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
       const allowed = await waitForPermissionResponse(result.request.id, outputEvent);
       permManager.record(result.request, allowed ? 'allow' : 'deny', false);
       if (allowed) {
+        await snapshotBeforeModify(toolName, input);
         win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
       }
     } finally {
@@ -96,6 +115,9 @@ export function registerAgentHandlers(): void {
       apiBaseUrl: activeProfile?.baseUrl,
       apiKey: activeProfile?.apiKey,
     });
+
+    // 初始化快照管理器
+    initSnapshotManager(options.workspacePath);
 
     const availability = await adapter.checkAvailability();
     if (!availability.available) {

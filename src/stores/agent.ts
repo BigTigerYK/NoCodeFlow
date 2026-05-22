@@ -101,6 +101,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   sendMessage: async (message: string) => {
     if (!message.trim()) return;
 
+    // Add user message
     get()._addMessage({
       id: crypto.randomUUID(),
       role: 'user',
@@ -109,18 +110,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     });
     set({ currentInput: '' });
 
-    const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
-
-    if (!result.success) {
-      get()._addMessage({
-        id: crypto.randomUUID(),
-        role: 'error',
-        content: result.error ?? 'Failed to send message',
-        timestamp: Date.now(),
-      });
-      return;
-    }
-
+    // Add empty assistant message BEFORE IPC call —
+    // CLI events may arrive before ipc.invoke returns
     get()._addMessage({
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -128,6 +119,18 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       timestamp: Date.now(),
       rawEvents: [],
     });
+
+    const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
+
+    if (!result.success) {
+      // Replace empty assistant message with error
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'error',
+        content: result.error ?? 'Failed to send message',
+        timestamp: Date.now(),
+      });
+    }
   },
 
   stopAgent: async () => {
@@ -159,6 +162,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   }),
 
   _handleOutputEvent: (event: AgentOutputEvent) => {
+
     // Emit to Event Bus for multi-consumer support (Timeline, etc.)
     agentEventBus.emit('agent:output', event);
 
@@ -226,20 +230,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         break;
       }
 
-      case 'result': {
-        const entries = get()._timelineBuilder?.getEntries();
-        const resultEntry = entries?.find((e): e is ResultEntry => e.kind === 'result');
-        if (resultEntry?.content) {
-          get()._addMessage({
-            id: crypto.randomUUID(),
-            role: 'result',
-            content: resultEntry.content,
-            timestamp: Date.now(),
-            resultEntry,
-          });
-        }
+      case 'result':
+        // Result text is already shown via assistant text events — no need to duplicate
         break;
-      }
 
       case 'error':
         get()._addMessage({

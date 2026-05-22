@@ -25,6 +25,7 @@
     "chokidar": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "electron-store": "^8.1.0",
     "lucide-react": "^1.16.0",
     "monaco-editor": "^0.55.1",
@@ -37,6 +38,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@types/diff": "^7.0.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/react-syntax-highlighter": "^15.5.13",

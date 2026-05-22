@@ -34,11 +34,20 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
   useEffect(() => {
     if (!initializedRef.current && workspacePath) {
       initializedRef.current = true;
-      initialize(workspacePath);
+      initialize(workspacePath).then((ok) => {
+        if (ok) {
+          // Check for pending task from HomePage
+          const pending = sessionStorage.getItem('pendingTask');
+          if (pending) {
+            sessionStorage.removeItem('pendingTask');
+            sendMessage(pending);
+          }
+        }
+      });
       initPermission();
     }
     return () => { disposePermission(); };
-  }, [workspacePath, initialize, initPermission, disposePermission]);
+  }, [workspacePath, initialize, initPermission, disposePermission, sendMessage]);
 
   useEffect(() => {
     if (scrollRef.current) {

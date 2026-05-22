@@ -38,6 +38,11 @@ interface WorkspaceState {
   updateTabContent: (path: string, content: string) => void;
   saveFile: (path: string) => Promise<void>;
   saveActiveFile: () => Promise<void>;
+
+  createFile: (dirPath: string, fileName: string) => Promise<string>;
+  createDirectory: (dirPath: string, dirName: string) => Promise<string>;
+  deletePath: (filePath: string) => Promise<void>;
+  renamePath: (oldPath: string, newName: string) => Promise<string>;
 }
 
 interface InvokeResult<T = unknown> {
@@ -229,5 +234,48 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const { activeTabPath } = get();
     if (!activeTabPath) return;
     await get().saveFile(activeTabPath);
+  },
+
+  createFile: async (dirPath: string, fileName: string) => {
+    const result = await ipcInvoke<{ path: string }>(IPC_CHANNELS.FS_CREATE_FILE, { dirPath, fileName });
+    await get().refreshTree();
+    get().expandPath(dirPath);
+    return result.path;
+  },
+
+  createDirectory: async (dirPath: string, dirName: string) => {
+    const result = await ipcInvoke<{ path: string }>(IPC_CHANNELS.FS_CREATE_DIR, { dirPath, dirName });
+    await get().refreshTree();
+    get().expandPath(dirPath);
+    return result.path;
+  },
+
+  deletePath: async (filePath: string) => {
+    await ipcInvoke(IPC_CHANNELS.FS_DELETE, { filePath });
+    // Close any open tabs for deleted path or children
+    const { openTabs, activeTabPath } = get();
+    const filtered = openTabs.filter((t) => !t.path.startsWith(filePath));
+    let newActive = activeTabPath;
+    if (activeTabPath && activeTabPath.startsWith(filePath)) {
+      newActive = filtered.length > 0 ? filtered[filtered.length - 1].path : null;
+    }
+    set({ openTabs: filtered, activeTabPath: newActive });
+    await get().refreshTree();
+  },
+
+  renamePath: async (oldPath: string, newName: string) => {
+    const result = await ipcInvoke<{ newPath: string }>(IPC_CHANNELS.FS_RENAME, { oldPath, newName });
+    // Update open tabs that match the old path
+    const { openTabs, activeTabPath } = get();
+    const updatedTabs = openTabs.map((t) => {
+      if (t.path === oldPath) {
+        return { ...t, path: result.newPath, name: newName, language: getLanguageForFile(result.newPath) };
+      }
+      return t;
+    });
+    const newActive = activeTabPath === oldPath ? result.newPath : activeTabPath;
+    set({ openTabs: updatedTabs, activeTabPath: newActive, selectedPath: result.newPath });
+    await get().refreshTree();
+    return result.newPath;
   },
 }));

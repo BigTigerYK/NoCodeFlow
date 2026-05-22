@@ -16,6 +16,7 @@ const api = {
       IPC_CHANNELS.AGENT_STATUS,
       IPC_CHANNELS.FS_WATCH_EVENT,
       IPC_CHANNELS.PERMISSION_REQUEST,
+      IPC_CHANNELS.SETUP_PROGRESS,
     ];
     if (allowedChannels.includes(channel as any)) {
       const subscription = (_event: Electron.IpcRendererEvent, ...args: unknown[]) =>

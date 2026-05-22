@@ -4,7 +4,7 @@ import { usePermissionStore } from '@/stores/permission';
 import { AgentStatusBar } from './AgentStatus';
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
-import { AgentUnavailableNotice } from './AgentUnavailableNotice';
+import { DependencySetup } from './DependencySetup';
 import { TimelinePanel } from './Timeline';
 import { PermissionDialog } from '@/components/Permission';
 import type { ToolUseEntry } from '@/lib/output-parser';
@@ -56,7 +56,14 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
   }, [messages, timelineEntries]);
 
   if (!isAvailable && initializedRef.current) {
-    return <AgentUnavailableNotice />;
+    return (
+      <DependencySetup
+        onReady={() => {
+          initializedRef.current = false;
+          initialize(workspacePath);
+        }}
+      />
+    );
   }
 
   return (

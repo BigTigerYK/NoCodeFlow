@@ -108,6 +108,7 @@ export class ClaudeAdapter {
           this.handleStreamEvent(json);
         } catch {
           this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: line } }, timestamp: Date.now() });
+        }
       }
     });
 

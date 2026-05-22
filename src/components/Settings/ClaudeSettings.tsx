@@ -95,9 +95,9 @@ export function ClaudeSettings({ config, onChange }: Props) {
     <section className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Claude 配置方案</h2>
+          <h2 className="text-lg font-semibold">AI 服务配置</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            管理多个 API 端点配置，快速切换不同的 Claude 服务
+            管理多个 API 端点配置，快速切换不同的 AI 服务
           </p>
         </div>
         <Button size="sm" onClick={openAddDialog}>
@@ -109,7 +109,7 @@ export function ClaudeSettings({ config, onChange }: Props) {
       {profiles.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            还没有配置方案。点击「添加方案」创建第一个 Claude API 配置。
+            还没有配置方案。点击「添加方案」创建第一个 AI 服务配置。
           </CardContent>
         </Card>
       ) : (
@@ -184,7 +184,7 @@ export function ClaudeSettings({ config, onChange }: Props) {
           <DialogHeader>
             <DialogTitle>{editingProfile ? '编辑方案' : '添加方案'}</DialogTitle>
             <DialogDescription>
-              配置 Claude API 端点和密钥。切换方案后需要重启 Agent 生效。
+              配置 AI 服务的 API 端点和密钥。切换方案后需要重启 Agent 生效。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -233,12 +233,12 @@ export function ClaudeSettings({ config, onChange }: Props) {
                 onChange={e => setForm(f => ({ ...f, adapterType: e.target.value as typeof f.adapterType }))}
                 className="w-full h-9 px-3 text-sm bg-background border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="claude-code">Claude Code (本地 CLI)</option>
-                <option value="claude-api">Claude API (直连)</option>
+                <option value="claude-code">本地 CLI 模式</option>
+                <option value="claude-api">云端 API 直连</option>
                 <option value="openai">OpenAI 兼容</option>
               </select>
               <p className="text-xs text-muted-foreground">
-                {form.adapterType === 'claude-code' && '需要本地安装 Claude Code CLI'}
+                {form.adapterType === 'claude-code' && '需要本地安装 AI CLI 工具'}
                 {form.adapterType === 'claude-api' && '直接调用 Anthropic Messages API'}
                 {form.adapterType === 'openai' && '兼容 OpenAI Chat Completions 接口'}
               </p>

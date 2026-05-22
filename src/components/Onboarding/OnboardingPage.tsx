@@ -133,7 +133,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
             <div className="text-center">
               <h2 className="text-xl font-bold mb-2">配置 Agent</h2>
               <p className="text-sm text-muted-foreground">
-                配置 Claude API Key 以启用 AI 功能
+                配置 AI 服务以启用智能助手功能
               </p>
             </div>
             <div className="space-y-4">

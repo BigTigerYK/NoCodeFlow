@@ -21,7 +21,9 @@
       "Bash(curl -sL \"https://txtmix.com/posts/tech/codegraph-claude-code-knowledge-graph/\")",
       "Bash(npx @colbymchenry/codegraph --help)",
       "Bash(npm i *)",
-      "Bash(codegraph install *)"
+      "Bash(codegraph install *)",
+      "Bash(npm -v)",
+      "Bash(npm ls *)"
     ]
   }
 }

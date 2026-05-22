@@ -71,7 +71,7 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && timelineEntries.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            开始与 Claude Code 对话
+            开始与 NoCodeFlow AI 对话
           </div>
         ) : (
           <>

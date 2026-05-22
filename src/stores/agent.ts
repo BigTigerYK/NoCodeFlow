@@ -91,7 +91,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       get()._addMessage({
         id: crypto.randomUUID(),
         role: 'system',
-        content: `Claude CLI 不可用：${result.error}`,
+        content: `AI 运行时不可用：${result.error}`,
         timestamp: Date.now(),
       });
       return false;

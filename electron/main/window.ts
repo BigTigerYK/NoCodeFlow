@@ -1,9 +1,11 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, Menu, shell } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
 
 export function createMainWindow(): BrowserWindow {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -22,11 +24,6 @@ export function createMainWindow(): BrowserWindow {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../../dist/index.html'));
-  }
-
-  // Open DevTools in development
-  if (process.env.VITE_DEV_SERVER_URL) {
-    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {

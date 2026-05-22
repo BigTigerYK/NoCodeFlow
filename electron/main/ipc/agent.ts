@@ -1,12 +1,13 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '@shared/types/ipc';
-import { ClaudeAdapter } from '../agent';
+import { createAdapter, type AgentAdapter } from '../agent/adapters';
 import { configStore, decryptApiKeys } from '../store/config';
 import { getPermissionManager, waitForPermissionResponse, removePendingConfirmation } from './permission';
 import { getSnapshotManager, initSnapshotManager } from './snapshot';
 import type { AgentOutputEvent } from '@shared/types/agent';
+import { logger } from '../logger';
 
-let adapter: ClaudeAdapter | null = null;
+let adapter: AgentAdapter | null = null;
 
 async function snapshotBeforeModify(toolName: string, input: Record<string, unknown>): Promise<void> {
   if ((toolName === 'Write' || toolName === 'Edit') && typeof input.file_path === 'string') {
@@ -18,7 +19,6 @@ async function snapshotBeforeModify(toolName: string, input: Record<string, unkn
 }
 
 async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOutputEvent): Promise<void> {
-  // 非 tool_use 事件直接转发
   if (outputEvent.type !== 'tool_use') {
     win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
     return;
@@ -26,7 +26,6 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
 
   const permManager = getPermissionManager();
   if (!permManager) {
-    // 无权限管理器时仍创建快照
     const toolName = (outputEvent.data.name as string) || '';
     const input = (typeof outputEvent.data.input === 'object' && outputEvent.data.input !== null
       ? outputEvent.data.input
@@ -44,14 +43,12 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
 
   const result = await permManager.evaluate(toolName, input, toolId);
 
-  // 自动允许 — 创建快照后转发
   if (result.riskLevel === 'auto_allow') {
     await snapshotBeforeModify(toolName, input);
     win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, outputEvent);
     return;
   }
 
-  // 直接拒绝 — 记录 + 发送拒绝消息
   if (result.riskLevel === 'deny' && result.request) {
     permManager.record(result.request, 'deny', false);
     win?.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, {
@@ -62,9 +59,7 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
     return;
   }
 
-  // 需要确认
   if (result.riskLevel === 'confirm' && result.request) {
-    // 检查会话记忆
     const remembered = permManager.checkSessionMemory(result.request);
     if (remembered !== null) {
       permManager.record(result.request, remembered ? 'allow' : 'deny', true);
@@ -75,7 +70,6 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
       return;
     }
 
-    // 发送权限请求到渲染进程，等待用户响应
     win?.webContents.send(IPC_CHANNELS.PERMISSION_REQUEST, result.request);
 
     try {
@@ -98,30 +92,30 @@ export function registerAgentHandlers(): void {
     permissionMode?: 'default' | 'auto';
   }) => {
     if (adapter) {
-      adapter.destroy();
+      adapter.stop();
     }
 
-    // Read active profile from config (decrypt API keys)
     const fullConfig = configStore.store;
     const decrypted = decryptApiKeys(fullConfig);
     const profiles = decrypted.claude.profiles;
     const activeId = decrypted.claude.activeProfileId;
     const activeProfile = profiles.find(p => p.id === activeId);
 
-    adapter = new ClaudeAdapter({
+    const adapterType = activeProfile?.adapterType || 'claude-code';
+    logger.info(`Starting agent with adapter: ${adapterType}`, 'agent');
+
+    adapter = createAdapter(adapterType, {
       workspacePath: options.workspacePath,
       model: activeProfile?.model || options.model,
-      permissionMode: options.permissionMode ?? 'default',
       apiBaseUrl: activeProfile?.baseUrl,
       apiKey: activeProfile?.apiKey,
     });
 
-    // 初始化快照管理器
     initSnapshotManager(options.workspacePath);
 
     const availability = await adapter.checkAvailability();
     if (!availability.available) {
-      adapter.destroy();
+      adapter.stop();
       adapter = null;
       return { success: false, error: availability.error };
     }
@@ -153,19 +147,13 @@ export function registerAgentHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.AGENT_STOP, async () => {
     if (adapter) {
-      await adapter.stop();
+      adapter.stop();
     }
     return { success: true };
-  });
-
-  ipcMain.handle(IPC_CHANNELS.AGENT_STATUS, async () => {
-    return {
-      status: adapter?.getStatus() ?? 'idle',
-    };
   });
 }
 
 export function cleanupAgent(): void {
-  adapter?.destroy();
+  adapter?.stop();
   adapter = null;
 }

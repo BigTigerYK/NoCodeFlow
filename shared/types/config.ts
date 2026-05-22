@@ -4,6 +4,7 @@ export interface ClaudeProfile {
   baseUrl: string;
   apiKey: string;
   model?: string;
+  adapterType?: 'claude-code' | 'claude-api' | 'openai';
 }
 
 export interface AppConfig {
@@ -28,6 +29,7 @@ export interface AppConfig {
     rememberDuration: 'session' | 'always';
   };
   recentWorkspaces: string[];
+  onboardingCompleted: boolean;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -52,4 +54,5 @@ export const DEFAULT_CONFIG: AppConfig = {
     rememberDuration: 'session',
   },
   recentWorkspaces: [],
+  onboardingCompleted: false,
 };

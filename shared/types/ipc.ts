@@ -41,6 +41,16 @@ export const IPC_CHANNELS = {
   SNAPSHOT_GET: 'snapshot:get',
   SNAPSHOT_RESTORE: 'snapshot:restore',
   SNAPSHOT_DELETE: 'snapshot:delete',
+
+  // 文档
+  DOCUMENT_IMPORT: 'document:import',
+  DOCUMENT_LIST: 'document:list',
+  DOCUMENT_GET: 'document:get',
+  DOCUMENT_DELETE: 'document:delete',
+  DOCUMENT_SEARCH: 'document:search',
+  DOCUMENT_PARSE: 'document:parse',
+  DOCUMENT_SUMMARIZE: 'document:summarize',
+  DOCUMENT_QA: 'document:qa',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

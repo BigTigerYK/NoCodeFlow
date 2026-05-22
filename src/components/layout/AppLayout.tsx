@@ -4,23 +4,15 @@ import { StatusBar } from './StatusBar';
 import { SettingsPage } from '@/components/Settings/SettingsPage';
 import { WorkspacePage } from '@/components/Workspace/WorkspacePage';
 import { HomePage } from '@/components/TaskCenter/HomePage';
+import { KnowledgePage } from '@/components/Knowledge/KnowledgePage';
+import { OnboardingPage } from '@/components/Onboarding/OnboardingPage';
 import { ToastContainer } from '@/components/Common/Toast';
 import { useConfig } from '@/hooks/useConfig';
-
-function KnowledgePlaceholder() {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-2">知识库</h1>
-        <p className="text-muted-foreground text-sm">阶段二实现</p>
-      </div>
-    </div>
-  );
-}
 
 export function AppLayout() {
   const [activePage, setActivePage] = useState<SidebarPage>('task-center');
   const { config } = useConfig();
+  const [showOnboarding, setShowOnboarding] = useState(!config.onboardingCompleted);
 
   // Apply theme at runtime
   useEffect(() => {
@@ -53,11 +45,15 @@ export function AppLayout() {
       case 'workspace':
         return <WorkspacePage />;
       case 'knowledge':
-        return <KnowledgePlaceholder />;
+        return <KnowledgePage />;
       case 'settings':
         return <SettingsPage />;
     }
   };
+
+  if (showOnboarding) {
+    return <OnboardingPage onComplete={() => setShowOnboarding(false)} />;
+  }
 
   return (
     <div className="h-screen flex flex-col">

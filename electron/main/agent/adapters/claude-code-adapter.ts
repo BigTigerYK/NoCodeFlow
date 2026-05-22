@@ -18,6 +18,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   private onStatusCallback: ((status: AgentStatus) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private killTimer: ReturnType<typeof setTimeout> | null = null;
+  private stoppedByUser = false;
+  private sendReject: ((reason: Error) => void) | null = null;
 
   constructor(options: AgentAdapterOptions) {
     this.options = {
@@ -66,6 +68,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
   async send(message: string): Promise<void> {
     if (this.status === 'running') throw new Error('Agent is already running');
+    this.stoppedByUser = false;
     this.setStatus('starting');
 
     const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
@@ -83,6 +86,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     let outputBuffer = '';
 
     this.currentProcess.stdout?.on('data', (data: Buffer) => {
+      if (this.stoppedByUser) return;
       outputBuffer += data.toString();
       const lines = outputBuffer.split('\n');
       outputBuffer = lines.pop() || '';
@@ -97,28 +101,65 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     });
 
     this.currentProcess.stderr?.on('data', (data: Buffer) => {
+      if (this.stoppedByUser) return;
       const msg = data.toString().trim();
       if (!msg || msg.startsWith('Warning:') || msg.includes('proceeding without')) return;
       this.emitOutput({ type: 'error', data: { error: msg }, timestamp: Date.now() });
     });
 
     return new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => { this.stop(); reject(new Error('Agent execution timed out')); }, this.options.timeoutMs);
+      this.sendReject = reject;
+
+      const timeout = setTimeout(() => {
+        this.sendReject = null;
+        this.stop();
+        reject(new Error('Agent execution timed out'));
+      }, this.options.timeoutMs);
+
       this.currentProcess!.on('close', (code) => {
         clearTimeout(timeout);
-        if (outputBuffer.trim()) {
-          try { this.handleStreamEvent(JSON.parse(outputBuffer)); } catch {
-            this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: outputBuffer } }, timestamp: Date.now() });
-          }
+        this.sendReject = null;
+
+        // User clicked stop — discard everything silently
+        if (this.stoppedByUser) {
+          outputBuffer = '';
+          this.currentProcess = null;
+          resolve();
+          return;
         }
+
+        outputBuffer = '';
+
         if (code === 0) { this.setStatus('completed'); resolve(); }
         else { this.setStatus('error'); reject(new Error(`Agent exited with code ${code}`)); }
+        this.currentProcess = null;
       });
-      this.currentProcess!.on('error', (err) => { clearTimeout(timeout); this.setStatus('error'); reject(err); });
+
+      this.currentProcess!.on('error', (err) => {
+        clearTimeout(timeout);
+        this.sendReject = null;
+        if (this.stoppedByUser) {
+          this.currentProcess = null;
+          resolve();
+          return;
+        }
+        this.setStatus('error');
+        this.currentProcess = null;
+        reject(err);
+      });
     });
   }
 
   stop() {
+    this.stoppedByUser = true;
+
+    // Unblock the pending send() promise so AGENT_SEND IPC can return
+    if (this.sendReject) {
+      const reject = this.sendReject;
+      this.sendReject = null;
+      reject(new Error('Agent stopped by user'));
+    }
+
     if (this.killTimer) { clearTimeout(this.killTimer); this.killTimer = null; }
     if (this.currentProcess && !this.currentProcess.killed) {
       this.currentProcess.kill('SIGTERM');

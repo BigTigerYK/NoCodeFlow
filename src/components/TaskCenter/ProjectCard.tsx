@@ -18,7 +18,10 @@ export function ProjectCard({ name, path, onRemove }: ProjectCardProps) {
         'group relative flex items-start gap-3 p-4 rounded-lg border bg-card text-left',
         'card-hover cursor-pointer w-full',
       )}
-      onClick={() => openWorkspace(path)}
+      onClick={async () => {
+        await openWorkspace(path);
+        window.dispatchEvent(new CustomEvent('nocodeflow:navigate', { detail: 'workspace' }));
+      }}
       title={path}
     >
       <FolderOpen className="h-5 w-5 mt-0.5 text-muted-foreground shrink-0" />
@@ -59,6 +62,7 @@ export function NewProjectCard({ onCreated }: NewProjectCardProps) {
     const path = await window.api.invoke(IPC_CHANNELS.FS_OPEN_DIALOG);
     if (path) {
       await openWorkspace(path as string);
+      window.dispatchEvent(new CustomEvent('nocodeflow:navigate', { detail: 'workspace' }));
       onCreated?.();
     }
   };

@@ -123,6 +123,9 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
 
     if (!result.success) {
+      // User stopped the agent — silently discard, don't show error
+      if (result.error?.includes('stopped by user')) return;
+
       // Replace empty assistant message with error
       get()._addMessage({
         id: crypto.randomUUID(),

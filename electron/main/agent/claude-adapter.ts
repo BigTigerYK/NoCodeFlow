@@ -17,6 +17,8 @@ export class ClaudeAdapter {
   private onStatusCallback: ((status: AgentStatus) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private killTimer: ReturnType<typeof setTimeout> | null = null;
+  private stoppedByUser = false;
+  private sendReject: ((reason: Error) => void) | null = null;
 
   constructor(options: ClaudeAdapterOptions) {
     this.options = {
@@ -64,6 +66,7 @@ export class ClaudeAdapter {
       throw new Error('Agent is already running');
     }
 
+    this.stoppedByUser = false;
     this.setStatus('starting');
 
     const args = ['-p', '--output-format', 'stream-json', '--verbose'];
@@ -93,6 +96,7 @@ export class ClaudeAdapter {
     let outputBuffer = '';
 
     this.currentProcess.stdout?.on('data', (data: Buffer) => {
+      if (this.stoppedByUser) return;
       outputBuffer += data.toString();
       const lines = outputBuffer.split('\n');
       outputBuffer = lines.pop() || '';
@@ -104,11 +108,11 @@ export class ClaudeAdapter {
           this.handleStreamEvent(json);
         } catch {
           this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: line } }, timestamp: Date.now() });
-        }
       }
     });
 
     this.currentProcess.stderr?.on('data', (data: Buffer) => {
+      if (this.stoppedByUser) return;
       const msg = data.toString().trim();
       // Filter out non-critical warnings (e.g. stdin, deprecation notices)
       if (!msg || msg.startsWith('Warning:') || msg.includes('proceeding without')) {
@@ -118,22 +122,28 @@ export class ClaudeAdapter {
     });
 
     return new Promise<void>((resolve, reject) => {
+      this.sendReject = reject;
+
       const timeout = setTimeout(() => {
+        this.sendReject = null;
         this.stop();
         reject(new Error('Agent execution timed out'));
       }, this.options.timeoutMs);
 
       this.currentProcess!.on('close', (code) => {
         clearTimeout(timeout);
+        this.sendReject = null;
 
-        if (outputBuffer.trim()) {
-          try {
-            const json = JSON.parse(outputBuffer);
-            this.handleStreamEvent(json);
-          } catch {
-            this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: outputBuffer } }, timestamp: Date.now() });
-          }
+        // User clicked stop — discard everything silently
+        if (this.stoppedByUser) {
+          outputBuffer = '';
+          this.currentProcess = null;
+          resolve();
+          return;
         }
+
+        // Discard any remaining buffer
+        outputBuffer = '';
 
         if (code === 0) {
           this.setStatus('completed');
@@ -148,6 +158,12 @@ export class ClaudeAdapter {
 
       this.currentProcess.on('error', (err) => {
         clearTimeout(timeout);
+        this.sendReject = null;
+        if (this.stoppedByUser) {
+          this.currentProcess = null;
+          resolve();
+          return;
+        }
         this.setStatus('error');
         this.currentProcess = null;
         reject(err);
@@ -156,6 +172,15 @@ export class ClaudeAdapter {
   }
 
   async stop(): Promise<void> {
+    this.stoppedByUser = true;
+
+    // Unblock the pending send() promise so AGENT_SEND IPC can return
+    if (this.sendReject) {
+      const reject = this.sendReject;
+      this.sendReject = null;
+      reject(new Error('Agent stopped by user'));
+    }
+
     if (this.killTimer) {
       clearTimeout(this.killTimer);
       this.killTimer = null;

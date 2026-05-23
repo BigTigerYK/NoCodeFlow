@@ -25,6 +25,9 @@ export default defineConfig({
               '@shared': path.resolve(__dirname, 'shared'),
             },
           },
+          define: {
+            __IS_INTERNAL_BUILD__: JSON.stringify(process.env.VITE_INTERNAL_BUILD === 'true'),
+          },
         },
       },
       {
@@ -54,5 +57,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
       '@shared': path.resolve(__dirname, 'shared'),
     },
+  },
+  define: {
+    __IS_INTERNAL_BUILD__: JSON.stringify(process.env.VITE_INTERNAL_BUILD === 'true'),
   },
 });

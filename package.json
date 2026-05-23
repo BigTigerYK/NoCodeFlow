@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "electron:dev": "vite --mode electron",
     "electron:build": "vite build && electron-builder",
-    "build:win": "vite build && electron-builder --win"
+    "build:win": "vite build && electron-builder --win",
+    "build:internal": "cross-env VITE_INTERNAL_BUILD=true vite build && electron-builder",
+    "build:internal:win": "cross-env VITE_INTERNAL_BUILD=true vite build && electron-builder --win"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -47,6 +49,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.5.0",
+    "cross-env": "^10.1.0",
     "electron": "^28.0.0",
     "electron-builder": "^24.9.0",
     "postcss": "^8.5.15",

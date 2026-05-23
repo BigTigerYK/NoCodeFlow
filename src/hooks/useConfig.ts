@@ -21,13 +21,30 @@ const useConfigStore = create<ConfigState>((set, get) => ({
     set({ loading: true });
     try {
       const data = await window.api.invoke(IPC_CHANNELS.CONFIG_GET_ALL);
-      set({ config: { ...DEFAULT_CONFIG, ...(data as Partial<AppConfig>) }, _loaded: true });
+      let merged = { ...DEFAULT_CONFIG, ...(data as Partial<AppConfig>) };
+      if (__IS_INTERNAL_BUILD__) {
+        merged = {
+          ...merged,
+          claude: {
+            profiles: [{
+              id: 'internal',
+              name: '内测服务',
+              baseUrl: '',
+              apiKey: '',
+              adapterType: 'claude-code' as const,
+            }],
+            activeProfileId: 'internal',
+          },
+        };
+      }
+      set({ config: merged, _loaded: true });
     } finally {
       set({ loading: false });
     }
   },
 
   updateConfig: async <K extends keyof AppConfig>(key: K, value: AppConfig[K]) => {
+    if (__IS_INTERNAL_BUILD__ && key === 'claude') return;
     set((prev) => ({ config: { ...prev.config, [key]: value } }));
     await window.api.invoke(IPC_CHANNELS.CONFIG_SET, key, value);
   },

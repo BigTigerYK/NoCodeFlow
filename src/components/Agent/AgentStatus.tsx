@@ -62,7 +62,7 @@ export function AgentStatusBar({ status, onStop, currentTool }: AgentStatusBarPr
           )}
         />
 
-        {profiles.length > 0 ? (
+        {!__IS_INTERNAL_BUILD__ && profiles.length > 0 ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">

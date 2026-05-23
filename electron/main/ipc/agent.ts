@@ -2,6 +2,8 @@ import { ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { createAdapter, type AgentAdapter } from '../agent/adapters';
 import { configStore, decryptApiKeys } from '../store/config';
+import { IS_INTERNAL_BUILD } from '../env';
+import { INTERNAL_API_CONFIG } from '../internal-config';
 import { getPermissionManager, waitForPermissionResponse, removePendingConfirmation } from './permission';
 import { getSnapshotManager, initSnapshotManager } from './snapshot';
 import type { AgentOutputEvent } from '@shared/types/agent';
@@ -97,9 +99,22 @@ export function registerAgentHandlers(): void {
 
     const fullConfig = configStore.store;
     const decrypted = decryptApiKeys(fullConfig);
-    const profiles = decrypted.claude.profiles;
-    const activeId = decrypted.claude.activeProfileId;
-    const activeProfile = profiles.find(p => p.id === activeId);
+
+    let activeProfile;
+
+    if (IS_INTERNAL_BUILD) {
+      activeProfile = {
+        id: 'internal',
+        name: INTERNAL_API_CONFIG.profileName,
+        baseUrl: INTERNAL_API_CONFIG.baseUrl,
+        apiKey: INTERNAL_API_CONFIG.apiKey,
+        adapterType: INTERNAL_API_CONFIG.adapterType,
+      };
+    } else {
+      const profiles = decrypted.claude.profiles;
+      const activeId = decrypted.claude.activeProfileId;
+      activeProfile = profiles.find(p => p.id === activeId);
+    }
 
     const adapterType = activeProfile?.adapterType || 'claude-code';
     logger.info(`Starting agent with adapter: ${adapterType}`, 'agent');
@@ -110,6 +125,16 @@ export function registerAgentHandlers(): void {
       apiBaseUrl: activeProfile?.baseUrl,
       apiKey: activeProfile?.apiKey,
     });
+
+    if (IS_INTERNAL_BUILD) {
+      const isValidUrl = activeProfile?.baseUrl === INTERNAL_API_CONFIG.baseUrl;
+      const isValidKey = activeProfile?.apiKey === INTERNAL_API_CONFIG.apiKey;
+      if (!isValidUrl || !isValidKey) {
+        adapter.stop();
+        adapter = null;
+        return { success: false, error: '鉴权失败：请使用内测服务配置。如需帮助，请联系管理员。' };
+      }
+    }
 
     initSnapshotManager(options.workspacePath);
 

@@ -23,7 +23,9 @@ export function SettingsPage() {
         <Tabs defaultValue="general">
           <TabsList className="mb-6">
             <TabsTrigger value="general">通用</TabsTrigger>
-            <TabsTrigger value="claude">Agent 配置</TabsTrigger>
+            {!__IS_INTERNAL_BUILD__ && (
+              <TabsTrigger value="claude">Agent 配置</TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="general">
@@ -33,12 +35,14 @@ export function SettingsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="claude">
-            <ClaudeSettings
-              config={config.claude}
-              onChange={(claude) => updateConfig('claude', claude)}
-            />
-          </TabsContent>
+          {!__IS_INTERNAL_BUILD__ && (
+            <TabsContent value="claude">
+              <ClaudeSettings
+                config={config.claude}
+                onChange={(claude) => updateConfig('claude', claude)}
+              />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </ScrollArea>

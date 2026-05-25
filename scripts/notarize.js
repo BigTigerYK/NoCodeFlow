@@ -2,8 +2,6 @@
 // Requires: APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID environment variables
 // Run only in CI when building signed releases
 
-const { notarize } = require('@electron/notarize');
-
 exports.default = async function notarizing(context) {
   const { electronPlatformName, appOutDir } = context;
   if (electronPlatformName !== 'darwin') return;
@@ -14,6 +12,14 @@ exports.default = async function notarizing(context) {
 
   if (!appleId || !applePassword || !teamId) {
     console.log('Skipping notarization — APPLE_ID, APPLE_PASSWORD, or APPLE_TEAM_ID not set');
+    return;
+  }
+
+  let notarize;
+  try {
+    ({ notarize } = require('@electron/notarize'));
+  } catch {
+    console.log('Skipping notarization — @electron/notarize not installed');
     return;
   }
 

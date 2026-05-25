@@ -11,7 +11,11 @@
     "electron:build": "vite build && electron-builder",
     "build:win": "vite build && electron-builder --win",
     "build:internal": "cross-env VITE_INTERNAL_BUILD=true vite build && electron-builder",
-    "build:internal:win": "cross-env VITE_INTERNAL_BUILD=true vite build && electron-builder --win"
+    "build:internal:win": "cross-env VITE_INTERNAL_BUILD=true vite build && electron-builder --win",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:mac:arm64": "vite build && electron-builder --mac --arm64",
+    "build:mac:x64": "vite build && electron-builder --mac --x64",
+    "build:mac:ci": "gh workflow run build-mac.yml -f arch=both"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",

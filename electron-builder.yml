@@ -26,8 +26,10 @@ nsis:
 mac:
   target:
     - target: dmg
-      arch: [x64, arm64]
-  icon: resources/icon.icns
+      arch:
+        - x64
+        - arm64
+  icon: resources/icon.ico
   category: public.app-category.developer-tools
   hardenedRuntime: true
   gatekeeperAssess: false
@@ -43,6 +45,7 @@ dmg:
       type: link
       path: /Applications
 
+# Only run notarization when building on macOS with signing credentials
 afterSign: scripts/notarize.js
 
 # ─── Auto-update ───

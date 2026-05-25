@@ -72,6 +72,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     this.setStatus('starting');
 
     const args = ['-p', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions'];
+    if (this.options.model) {
+      args.push('--model', this.options.model);
+    }
 
     this.currentProcess = spawn(getClaudeCommand(), args, {
       cwd: this.options.workspacePath,
@@ -171,6 +174,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
 
   private handleStreamEvent(json: any) {
+    if (json.session_id && typeof json.session_id === 'string') {
+      this.sessionId = json.session_id;
+    }
+
     const ts = Date.now();
     switch (json.type) {
       case 'text':
@@ -179,6 +186,21 @@ export class ClaudeCodeAdapter implements AgentAdapter {
           this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: json.delta.text || '' } }, timestamp: ts });
         }
         break;
+
+      case 'assistant': {
+        const content = json.message?.content;
+        if (!Array.isArray(content)) break;
+        for (const block of content) {
+          if (block.type === 'text' && typeof block.text === 'string') {
+            this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: block.text } }, timestamp: ts });
+          } else if (block.type === 'tool_use') {
+            this.emitOutput({ type: 'tool_use', data: { id: block.id, name: block.name, input: block.input }, timestamp: ts });
+          }
+          // thinking blocks are ignored
+        }
+        break;
+      }
+
       case 'tool_use':
         this.emitOutput({ type: 'tool_use', data: { id: json.id, name: json.name, input: json.input }, timestamp: ts });
         break;
@@ -192,11 +214,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         this.emitOutput({ type: 'result', data: { result: json.result || json.content, duration_ms: json.duration_ms, num_turns: json.num_turns }, timestamp: ts });
         break;
       case 'system':
-        if (json.subtype === 'init') this.sessionId = json.session_id || null;
         this.emitOutput({ type: 'system', data: { subtype: json.subtype, session_id: json.session_id, model: json.model, tools: json.tools }, timestamp: ts });
         break;
       default:
-        if (json.type) this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: JSON.stringify(json) } }, timestamp: ts });
+        // Ignore unknown event types instead of dumping raw JSON as chat text
+        break;
     }
   }
 }

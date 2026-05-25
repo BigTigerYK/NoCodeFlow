@@ -1,0 +1,69 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [master, develop-internal-v1.0]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            artifact_name: NoCodeFlow-Setup-*.exe
+          - os: macos-latest
+            platform: mac
+            artifact_name: NoCodeFlow-*.dmg
+          - os: ubuntu-latest
+            platform: linux
+            artifact_name: NoCodeFlow-*.AppImage
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer
+        run: npm run build
+
+      - name: Build Electron (${{ matrix.platform }})
+        uses: samuelmeuli/action-electron-builder@v1
+        with:
+          build_script_name: build
+          args: --${{ matrix.platform }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          # macOS notarization (optional — set these secrets to enable)
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: NoCodeFlow-${{ matrix.platform }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.AppImage
+            release/*.yml
+          if-no-files-found: warn
+          retention-days: 30

@@ -12,7 +12,7 @@ import { useConfig } from '@/hooks/useConfig';
 export function AppLayout() {
   const [activePage, setActivePage] = useState<SidebarPage>('task-center');
   const { config } = useConfig();
-  const [showOnboarding, setShowOnboarding] = useState(!config.onboardingCompleted);
+  const [showOnboarding, setShowOnboarding] = useState(!__IS_INTERNAL_BUILD__ && !config.onboardingCompleted);
 
   // Apply theme at runtime
   useEffect(() => {

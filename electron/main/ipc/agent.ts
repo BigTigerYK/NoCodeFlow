@@ -109,6 +109,7 @@ export function registerAgentHandlers(): void {
         baseUrl: INTERNAL_API_CONFIG.baseUrl,
         apiKey: INTERNAL_API_CONFIG.apiKey,
         adapterType: INTERNAL_API_CONFIG.adapterType,
+        model: INTERNAL_API_CONFIG.model,
       };
     } else {
       const profiles = decrypted.claude.profiles;

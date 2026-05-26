@@ -108,6 +108,15 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       content: message,
       timestamp: Date.now(),
     });
+
+    // Create assistant message BEFORE sending so streaming events can append to it
+    get()._addMessage({
+      id: crypto.randomUUID(),
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+      rawEvents: [],
+    });
     set({ currentInput: '' });
 
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
@@ -119,16 +128,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         content: result.error ?? 'Failed to send message',
         timestamp: Date.now(),
       });
-      return;
     }
-
-    get()._addMessage({
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      rawEvents: [],
-    });
   },
 
   stopAgent: async () => {
@@ -227,18 +227,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         break;
       }
 
-      case 'result': {
-        const entries = get()._timelineBuilder?.getEntries();
-        const resultEntry = entries?.find((e): e is ResultEntry => e.kind === 'result');
-        if (resultEntry?.content) {
-          get()._addMessage({
-            id: crypto.randomUUID(),
-            role: 'result',
-            content: resultEntry.content,
-            timestamp: Date.now(),
-            resultEntry,
-          });
-        }
+      case 'result':
+        // Result text is already shown via assistant text events — no need to duplicate
         // Attach token usage to the last assistant message
         if (data.usage) {
           set((s) => {
@@ -254,7 +244,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           });
         }
         break;
-      }
 
       case 'error':
         get()._addMessage({

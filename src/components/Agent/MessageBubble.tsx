@@ -34,24 +34,34 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isSystem = role === 'system';
 
   return (
-    <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'max-w-[85%] rounded-lg px-4 py-2 text-sm',
-          isUser && 'bg-primary text-primary-foreground',
-          isError && 'bg-destructive text-destructive-foreground',
-          isSystem && 'bg-muted text-muted-foreground',
-          !isUser && !isError && !isSystem && 'bg-secondary text-secondary-foreground'
-        )}
-      >
-        {isSystem || isError ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : message.content ? (
-          <MarkdownRenderer content={message.content} />
-        ) : (
-          <span className="inline-block animate-pulse">...</span>
-        )}
+    <>
+      <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
+        <div
+          className={cn(
+            'max-w-[85%] rounded-lg px-4 py-2 text-sm',
+            isUser && 'bg-primary text-primary-foreground',
+            isError && 'bg-destructive text-destructive-foreground',
+            isSystem && 'bg-muted text-muted-foreground',
+            !isUser && !isError && !isSystem && 'bg-secondary text-secondary-foreground'
+          )}
+        >
+          {isSystem || isError ? (
+            <p className="whitespace-pre-wrap">{message.content}</p>
+          ) : message.content ? (
+            <MarkdownRenderer content={message.content} />
+          ) : (
+            <span className="inline-block animate-pulse">...</span>
+          )}
+        </div>
       </div>
-    </div>
+      {!isUser && !isError && !isSystem && message.usage && (
+        <div className="flex justify-start mt-0.5">
+          <span className="text-xs text-muted-foreground pl-1">
+            Tokens: 入 {message.usage.input_tokens.toLocaleString()} / 出 {message.usage.output_tokens.toLocaleString()}
+            {message.usage.cache_read_input_tokens ? ` / 缓存 ${message.usage.cache_read_input_tokens.toLocaleString()}` : ''}
+          </span>
+        </div>
+      )}
+    </>
   );
 }

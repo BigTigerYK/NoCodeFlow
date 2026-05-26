@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
-import type { AgentOutputEvent } from '@shared/types/agent';
+import type { AgentOutputEvent, TokenUsage } from '@shared/types/agent';
 import type { AppConfig } from '@shared/types/config';
 import { agentEventBus } from '@/lib/event-bus';
 import { TimelineBuilder } from '@/lib/timeline-builder';
@@ -15,6 +15,7 @@ export interface AgentMessage {
   toolEntry?: ToolUseEntry;
   toolResult?: ToolResultEntry;
   resultEntry?: ResultEntry;
+  usage?: TokenUsage;
 }
 
 interface AgentState {
@@ -236,6 +237,20 @@ export const useAgentStore = create<AgentState>((set, get) => ({
             content: resultEntry.content,
             timestamp: Date.now(),
             resultEntry,
+          });
+        }
+        // Attach token usage to the last assistant message
+        if (data.usage) {
+          set((s) => {
+            const messages = s.messages;
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].role === 'assistant') {
+                const updated = [...messages];
+                updated[i] = { ...updated[i], usage: data.usage as TokenUsage };
+                return { messages: updated };
+              }
+            }
+            return s;
           });
         }
         break;

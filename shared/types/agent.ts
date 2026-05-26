@@ -32,9 +32,17 @@ export interface ErrorData {
   [key: string]: unknown;
 }
 
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+  cache_creation_input_tokens?: number;
+  cache_read_input_tokens?: number;
+}
+
 export interface ResultData {
   result?: string;
   session_id?: string;
+  usage?: TokenUsage;
   [key: string]: unknown;
 }
 

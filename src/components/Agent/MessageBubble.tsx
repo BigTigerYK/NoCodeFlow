@@ -6,15 +6,16 @@ import type { AgentMessage } from '@/stores/agent';
 
 interface MessageBubbleProps {
   message: AgentMessage;
+  highlight?: boolean;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, highlight }: MessageBubbleProps) {
   const { role } = message;
 
   // Tool use — rendered as a Timeline card
   if (role === 'tool_use' && message.toolEntry) {
     return (
-      <div className="my-1">
+      <div className={cn('my-1', highlight && 'ring-2 ring-primary/50 rounded-lg transition-all duration-300')}>
         <ToolUseEntryView entry={message.toolEntry} result={message.toolResult} />
       </div>
     );
@@ -23,7 +24,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   // Final result
   if (role === 'result' && message.resultEntry) {
     return (
-      <div className="my-1">
+      <div className={cn('my-1', highlight && 'ring-2 ring-primary/50 rounded-lg transition-all duration-300')}>
         <ResultEntryView entry={message.resultEntry} />
       </div>
     );
@@ -34,7 +35,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isSystem = role === 'system';
 
   return (
-    <>
+    <div className={cn(highlight && 'ring-2 ring-primary/50 rounded-lg transition-all duration-300')}>
       <div className={cn('flex', isUser ? 'justify-end' : 'justify-start')}>
         <div
           className={cn(
@@ -62,6 +63,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           </span>
         </div>
       )}
-    </>
+    </div>
   );
 }

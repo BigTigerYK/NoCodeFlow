@@ -1,14 +1,16 @@
-import { BrowserWindow, shell } from 'electron';
+import { BrowserWindow, Menu, shell } from 'electron';
 import path from 'path';
 
 let mainWindow: BrowserWindow | null = null;
 
 export function createMainWindow(): BrowserWindow {
+  Menu.setApplicationMenu(null);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    minWidth: 1000,
-    minHeight: 700,
+    minWidth: 900,
+    minHeight: 600,
     title: 'NoCodeFlow',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),

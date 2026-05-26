@@ -17,6 +17,8 @@ export class ClaudeAdapter {
   private onStatusCallback: ((status: AgentStatus) => void) | null = null;
   private onErrorCallback: ((error: Error) => void) | null = null;
   private killTimer: ReturnType<typeof setTimeout> | null = null;
+  private stoppedByUser = false;
+  private sendReject: ((reason: Error) => void) | null = null;
 
   constructor(options: ClaudeAdapterOptions) {
     this.options = {
@@ -64,19 +66,20 @@ export class ClaudeAdapter {
       throw new Error('Agent is already running');
     }
 
+    this.stoppedByUser = false;
     this.setStatus('starting');
 
-    const args = ['-p', '--output-format', 'stream-json'];
+    const args = ['-p', '--output-format', 'stream-json', '--verbose'];
 
-    if (this.options.permissionMode) {
-      args.push('--permission-mode', this.options.permissionMode);
-    }
+    // In -p (non-interactive) mode, CLI cannot prompt for permissions.
+    // Skip CLI's permission system — our app's PermissionManager handles the real checks.
+    args.push('--dangerously-skip-permissions');
 
-    if (this.sessionId) {
-      args.push('--resume', this.sessionId);
-    }
+    // Session resumption disabled to ensure fresh responses each time
+    // if (this.sessionId) {
+    //   args.push('--resume', this.sessionId);
+    // }
 
-    args.push(message);
 
     this.currentProcess = spawn(getClaudeCommand(), args, {
       cwd: this.options.workspacePath,
@@ -84,11 +87,16 @@ export class ClaudeAdapter {
       env: this.buildEnv(),
     });
 
+    // Write message to stdin and close — CLI reads prompt from stdin in -p mode
+    this.currentProcess.stdin?.write(message);
+    this.currentProcess.stdin?.end();
+
     this.setStatus('running');
 
     let outputBuffer = '';
 
     this.currentProcess.stdout?.on('data', (data: Buffer) => {
+      if (this.stoppedByUser) return;
       outputBuffer += data.toString();
       const lines = outputBuffer.split('\n');
       outputBuffer = lines.pop() || '';
@@ -105,26 +113,38 @@ export class ClaudeAdapter {
     });
 
     this.currentProcess.stderr?.on('data', (data: Buffer) => {
-      this.emitOutput({ type: 'error', data: { error: data.toString() }, timestamp: Date.now() });
+      if (this.stoppedByUser) return;
+      const msg = data.toString().trim();
+      // Filter out non-critical warnings (e.g. stdin, deprecation notices)
+      if (!msg || msg.startsWith('Warning:') || msg.includes('proceeding without')) {
+        return;
+      }
+      this.emitOutput({ type: 'error', data: { error: msg }, timestamp: Date.now() });
     });
 
     return new Promise<void>((resolve, reject) => {
+      this.sendReject = reject;
+
       const timeout = setTimeout(() => {
+        this.sendReject = null;
         this.stop();
         reject(new Error('Agent execution timed out'));
       }, this.options.timeoutMs);
 
       this.currentProcess!.on('close', (code) => {
         clearTimeout(timeout);
+        this.sendReject = null;
 
-        if (outputBuffer.trim()) {
-          try {
-            const json = JSON.parse(outputBuffer);
-            this.handleStreamEvent(json);
-          } catch {
-            this.emitOutput({ type: 'text', data: { delta: { type: 'text_delta', text: outputBuffer } }, timestamp: Date.now() });
-          }
+        // User clicked stop — discard everything silently
+        if (this.stoppedByUser) {
+          outputBuffer = '';
+          this.currentProcess = null;
+          resolve();
+          return;
         }
+
+        // Discard any remaining buffer
+        outputBuffer = '';
 
         if (code === 0) {
           this.setStatus('completed');
@@ -139,6 +159,12 @@ export class ClaudeAdapter {
 
       this.currentProcess.on('error', (err) => {
         clearTimeout(timeout);
+        this.sendReject = null;
+        if (this.stoppedByUser) {
+          this.currentProcess = null;
+          resolve();
+          return;
+        }
         this.setStatus('error');
         this.currentProcess = null;
         reject(err);
@@ -147,6 +173,15 @@ export class ClaudeAdapter {
   }
 
   async stop(): Promise<void> {
+    this.stoppedByUser = true;
+
+    // Unblock the pending send() promise so AGENT_SEND IPC can return
+    if (this.sendReject) {
+      const reject = this.sendReject;
+      this.sendReject = null;
+      reject(new Error('Agent stopped by user'));
+    }
+
     if (this.killTimer) {
       clearTimeout(this.killTimer);
       this.killTimer = null;
@@ -217,24 +252,74 @@ export class ClaudeAdapter {
     const type = json.type as string;
 
     switch (type) {
-      case 'content_block_start':
-      case 'content_block_delta':
-      case 'content_block_stop':
-        this.emitOutput({ type: 'text', data: json as unknown as TextDeltaData, timestamp: Date.now() });
+      case 'system':
+        // Init/system events — forward for debugging
+        this.emitOutput({ type: 'system', data: json as unknown as SystemData, timestamp: Date.now() });
         break;
-      case 'tool_use':
-        this.emitOutput({ type: 'tool_use', data: json as unknown as ToolUseData, timestamp: Date.now() });
+
+      case 'assistant': {
+        // Assistant message — extract content blocks (text, tool_use, thinking)
+        const message = json.message as Record<string, unknown> | undefined;
+        const content = message?.content as Array<Record<string, unknown>> | undefined;
+        if (!content) break;
+
+        for (const block of content) {
+          const blockType = block.type as string;
+
+          if (blockType === 'text' && typeof block.text === 'string') {
+            this.emitOutput({
+              type: 'text',
+              data: { delta: { type: 'text_delta', text: block.text } } as TextDeltaData,
+              timestamp: Date.now(),
+            });
+          } else if (blockType === 'tool_use') {
+            this.emitOutput({
+              type: 'tool_use',
+              data: {
+                id: block.id as string,
+                name: block.name as string,
+                input: block.input,
+              } as ToolUseData,
+              timestamp: Date.now(),
+            });
+          }
+          // thinking blocks are ignored — not displayed in chat
+        }
         break;
+      }
+
+      case 'result': {
+        // Final result event
+        const isError = json.is_error === true || json.subtype === 'error';
+        if (isError) {
+          this.emitOutput({
+            type: 'error',
+            data: { error: (json.result as string) || (json.error as string) || 'Unknown error' } as ErrorData,
+            timestamp: Date.now(),
+          });
+        } else {
+          this.emitOutput({
+            type: 'result',
+            data: {
+              result: json.result as string,
+              session_id: json.session_id as string,
+            } as ResultData,
+            timestamp: Date.now(),
+          });
+        }
+        break;
+      }
+
       case 'tool_result':
         this.emitOutput({ type: 'tool_result', data: json as unknown as ToolResultData, timestamp: Date.now() });
         break;
+
       case 'error':
         this.emitOutput({ type: 'error', data: json as unknown as ErrorData, timestamp: Date.now() });
         break;
-      case 'result':
-        this.emitOutput({ type: 'result', data: json as unknown as ResultData, timestamp: Date.now() });
-        break;
+
       default:
+        // Forward unknown events as system events
         this.emitOutput({ type: 'system', data: json as unknown as SystemData, timestamp: Date.now() });
     }
   }

@@ -19,3 +19,7 @@ export const MAX_RECENT_WORKSPACES_DISPLAY = 8;
 // Watcher
 export const WATCHER_THROTTLE_MS = 100;
 export const WATCHER_STABILITY_THRESHOLD_MS = 300;
+
+// Snapshot
+export const MAX_SNAPSHOTS = 50;
+export const SNAPSHOT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB

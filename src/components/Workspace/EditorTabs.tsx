@@ -58,7 +58,7 @@ export function EditorTabs() {
             aria-selected={activeTabPath === tab.path}
             tabIndex={activeTabPath === tab.path ? 0 : -1}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer border-r hover:bg-accent/50 shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              'flex items-center gap-1.5 px-3 py-1.5 text-sm cursor-pointer border-r hover:bg-accent/50 shrink-0 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-all duration-200',
               activeTabPath === tab.path
                 ? 'bg-background border-b-2 border-b-primary'
                 : 'text-muted-foreground',

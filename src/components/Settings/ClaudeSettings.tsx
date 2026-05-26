@@ -33,13 +33,13 @@ function maskKey(key: string) {
 export function ClaudeSettings({ config, onChange }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<ClaudeProfile | null>(null);
-  const [form, setForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '' });
+  const [form, setForm] = useState({ name: '', baseUrl: '', apiKey: '', model: '', adapterType: 'claude-code' as 'claude-code' | 'claude-api' | 'openai' });
 
   const { profiles, activeProfileId } = config;
 
   const openAddDialog = () => {
     setEditingProfile(null);
-    setForm({ name: '', baseUrl: '', apiKey: '', model: '' });
+    setForm({ name: '', baseUrl: '', apiKey: '', model: '', adapterType: 'claude-code' });
     setDialogOpen(true);
   };
 
@@ -50,6 +50,7 @@ export function ClaudeSettings({ config, onChange }: Props) {
       baseUrl: profile.baseUrl,
       apiKey: profile.apiKey,
       model: profile.model ?? '',
+      adapterType: profile.adapterType ?? 'claude-code',
     });
     setDialogOpen(true);
   };
@@ -58,21 +59,20 @@ export function ClaudeSettings({ config, onChange }: Props) {
     if (!form.name.trim() || !form.baseUrl.trim() || !form.apiKey.trim()) return;
 
     if (editingProfile) {
-      // Update existing
       const updated = profiles.map(p =>
         p.id === editingProfile.id
-          ? { ...p, name: form.name, baseUrl: form.baseUrl, apiKey: form.apiKey, model: form.model || undefined }
+          ? { ...p, name: form.name, baseUrl: form.baseUrl, apiKey: form.apiKey, model: form.model || undefined, adapterType: form.adapterType }
           : p
       );
       onChange({ ...config, profiles: updated });
     } else {
-      // Add new
       const newProfile: ClaudeProfile = {
         id: generateId(),
         name: form.name,
         baseUrl: form.baseUrl,
         apiKey: form.apiKey,
         model: form.model || undefined,
+        adapterType: form.adapterType,
       };
       onChange({ ...config, profiles: [...profiles, newProfile] });
     }
@@ -95,9 +95,9 @@ export function ClaudeSettings({ config, onChange }: Props) {
     <section className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Claude 配置方案</h2>
+          <h2 className="text-lg font-semibold">AI 服务配置</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            管理多个 API 端点配置，快速切换不同的 Claude 服务
+            管理多个 API 端点配置，快速切换不同的 AI 服务
           </p>
         </div>
         <Button size="sm" onClick={openAddDialog}>
@@ -109,7 +109,7 @@ export function ClaudeSettings({ config, onChange }: Props) {
       {profiles.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground text-sm">
-            还没有配置方案。点击「添加方案」创建第一个 Claude API 配置。
+            还没有配置方案。点击「添加方案」创建第一个 AI 服务配置。
           </CardContent>
         </Card>
       ) : (
@@ -135,7 +135,10 @@ export function ClaudeSettings({ config, onChange }: Props) {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground space-y-0.5">
-                      <div className="truncate">URL: {profile.baseUrl}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{profile.adapterType ?? 'claude-code'}</span>
+                        <span className="truncate">{profile.baseUrl}</span>
+                      </div>
                       <div>Key: {maskKey(profile.apiKey)}</div>
                       {profile.model && <div>Model: {profile.model}</div>}
                     </div>
@@ -181,7 +184,7 @@ export function ClaudeSettings({ config, onChange }: Props) {
           <DialogHeader>
             <DialogTitle>{editingProfile ? '编辑方案' : '添加方案'}</DialogTitle>
             <DialogDescription>
-              配置 Claude API 端点和密钥。切换方案后需要重启 Agent 生效。
+              配置 AI 服务的 API 端点和密钥。切换方案后需要重启 Agent 生效。
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -221,6 +224,24 @@ export function ClaudeSettings({ config, onChange }: Props) {
                 onChange={e => setForm(f => ({ ...f, model: e.target.value }))}
                 placeholder="留空使用默认模型"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-adapter">适配器类型</Label>
+              <select
+                id="profile-adapter"
+                value={form.adapterType}
+                onChange={e => setForm(f => ({ ...f, adapterType: e.target.value as typeof f.adapterType }))}
+                className="w-full h-9 px-3 text-sm bg-background border rounded-md focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="claude-code">本地 CLI 模式</option>
+                <option value="claude-api">云端 API 直连</option>
+                <option value="openai">OpenAI 兼容</option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {form.adapterType === 'claude-code' && '需要本地安装 AI CLI 工具'}
+                {form.adapterType === 'claude-api' && '直接调用 Anthropic Messages API'}
+                {form.adapterType === 'openai' && '兼容 OpenAI Chat Completions 接口'}
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -27,6 +27,11 @@ function isPathWithinWorkspace(filePath: string, workspaceRoot: string): boolean
   return resolved === resolvedRoot || resolved.startsWith(resolvedRoot + path.sep);
 }
 
+function isValidFileName(name: string): boolean {
+  if (!name || name.length > 255) return false;
+  return !/[/\\:*?"<>|]/.test(name);
+}
+
 export async function cleanupFsWatchers(): Promise<void> {
   if (watcher) {
     await watcher.close();
@@ -313,4 +318,103 @@ export function registerFsHandlers(): void {
       return { error: err.message };
     }
   });
+
+  // Create file
+  ipcMain.handle(
+    IPC_CHANNELS.FS_CREATE_FILE,
+    async (_event, args: { dirPath: string; fileName: string }) => {
+      try {
+        const { dirPath, fileName } = args;
+        if (!currentWorkspaceRoot) return { error: 'No workspace open' };
+        if (!isPathWithinWorkspace(dirPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
+        if (!isValidFileName(fileName)) return { error: 'Invalid file name' };
+        const filePath = path.join(dirPath, fileName);
+        try {
+          await fs.access(filePath);
+          return { error: 'File already exists' };
+        } catch {
+          // File doesn't exist - good
+        }
+        await fs.writeFile(filePath, '', 'utf-8');
+        return { data: { path: filePath } };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  );
+
+  // Create directory
+  ipcMain.handle(
+    IPC_CHANNELS.FS_CREATE_DIR,
+    async (_event, args: { dirPath: string; dirName: string }) => {
+      try {
+        const { dirPath, dirName } = args;
+        if (!currentWorkspaceRoot) return { error: 'No workspace open' };
+        if (!isPathWithinWorkspace(dirPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
+        if (!isValidFileName(dirName)) return { error: 'Invalid folder name' };
+        const newPath = path.join(dirPath, dirName);
+        await fs.mkdir(newPath, { recursive: false });
+        return { data: { path: newPath } };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  );
+
+  // Delete file or directory
+  ipcMain.handle(
+    IPC_CHANNELS.FS_DELETE,
+    async (_event, args: { filePath: string }) => {
+      try {
+        const { filePath } = args;
+        if (!currentWorkspaceRoot) return { error: 'No workspace open' };
+        if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
+        const stat = await fs.stat(filePath);
+        if (stat.isDirectory()) {
+          await fs.rm(filePath, { recursive: true, force: true });
+        } else {
+          await fs.unlink(filePath);
+        }
+        return { data: { success: true } };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  );
+
+  // Rename file or directory
+  ipcMain.handle(
+    IPC_CHANNELS.FS_RENAME,
+    async (_event, args: { oldPath: string; newName: string }) => {
+      try {
+        const { oldPath, newName } = args;
+        if (!currentWorkspaceRoot) return { error: 'No workspace open' };
+        if (!isPathWithinWorkspace(oldPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: path is outside workspace' };
+        }
+        if (!isValidFileName(newName)) return { error: 'Invalid name' };
+        const parentDir = path.dirname(oldPath);
+        const newPath = path.join(parentDir, newName);
+        if (!isPathWithinWorkspace(newPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: target is outside workspace' };
+        }
+        try {
+          await fs.access(newPath);
+          return { error: 'A file or folder with that name already exists' };
+        } catch {
+          // Target doesn't exist - good
+        }
+        await fs.rename(oldPath, newPath);
+        return { data: { newPath } };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  );
 }

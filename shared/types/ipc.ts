@@ -7,6 +7,10 @@ export const IPC_CHANNELS = {
   FS_WATCH: 'fs:watch',
   FS_WATCH_EVENT: 'fs:watch-event',
   FS_UNWATCH: 'fs:unwatch',
+  FS_CREATE_FILE: 'fs:create-file',
+  FS_CREATE_DIR: 'fs:create-dir',
+  FS_DELETE: 'fs:delete',
+  FS_RENAME: 'fs:rename',
 
   // 配置
   CONFIG_GET: 'config:get',
@@ -31,6 +35,28 @@ export const IPC_CHANNELS = {
   PERMISSION_UPDATE_WORKSPACE: 'permission:updateWorkspace',
   PERMISSION_GET_RECORDS: 'permission:getRecords',
   PERMISSION_RESPOND: 'permission:respond',
+
+  // 快照
+  SNAPSHOT_LIST: 'snapshot:list',
+  SNAPSHOT_GET: 'snapshot:get',
+  SNAPSHOT_RESTORE: 'snapshot:restore',
+  SNAPSHOT_DELETE: 'snapshot:delete',
+
+  // 文档
+  DOCUMENT_IMPORT: 'document:import',
+  DOCUMENT_LIST: 'document:list',
+  DOCUMENT_GET: 'document:get',
+  DOCUMENT_DELETE: 'document:delete',
+  DOCUMENT_SEARCH: 'document:search',
+  DOCUMENT_PARSE: 'document:parse',
+  DOCUMENT_SUMMARIZE: 'document:summarize',
+  DOCUMENT_QA: 'document:qa',
+
+  // 依赖安装
+  SETUP_CHECK_DEPS: 'setup:check-deps',
+  SETUP_INSTALL_CLI: 'setup:install-cli',
+  SETUP_PROGRESS: 'setup:progress',
+  SHELL_OPEN_EXTERNAL: 'shell:open-external',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

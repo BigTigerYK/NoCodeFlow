@@ -12,7 +12,19 @@
       "Bash(git push *)",
       "WebSearch",
       "Bash(npm run *)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(ELECTRON_BUILDER_BINARIES_MIRROR=\"https://npmmirror.com/mirrors/electron-builder-binaries/\" npm run *)",
+      "Bash(claude -p --output-format stream-json --verbose --dangerously-skip-permissions)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "WebFetch(domain:txtmix.com)",
+      "Bash(curl -sL \"https://txtmix.com/posts/tech/codegraph-claude-code-knowledge-graph/\")",
+      "Bash(npx @colbymchenry/codegraph --help)",
+      "Bash(npm i *)",
+      "Bash(codegraph install *)",
+      "Bash(npm -v)",
+      "Bash(npm ls *)",
+      "mcp__codegraph__codegraph_files"
     ]
   }
 }

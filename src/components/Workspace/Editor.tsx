@@ -1,11 +1,38 @@
+import { useEffect, useState } from 'react';
 import MonacoEditor, { OnMount } from '@monaco-editor/react';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useConfig } from '@/hooks/useConfig';
+
+function useMonacoTheme(): string {
+  const { config } = useConfig();
+  const [theme, setTheme] = useState<'vs-dark' | 'vs-light'>('vs-dark');
+
+  useEffect(() => {
+    const updateTheme = () => {
+      const isDark = document.documentElement.classList.contains('dark');
+      setTheme(isDark ? 'vs-dark' : 'vs-light');
+    };
+
+    updateTheme();
+
+    // Watch for class changes on <html>
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, [config.general.theme]);
+
+  return theme;
+}
 
 export function Editor() {
   const { openTabs, activeTabPath, updateTabContent, saveActiveFile } =
     useWorkspaceStore();
   const { config } = useConfig();
+  const monacoTheme = useMonacoTheme();
 
   const activeTab = openTabs.find((t) => t.path === activeTabPath);
 
@@ -13,14 +40,13 @@ export function Editor() {
     return (
       <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center">
-          <p className="text-sm">Select a file to open</p>
+          <p className="text-sm">选择一个文件开始编辑</p>
         </div>
       </div>
     );
   }
 
   const handleEditorMount: OnMount = (editor, monaco) => {
-    // Ctrl+S save shortcut
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       saveActiveFile();
     });
@@ -31,7 +57,7 @@ export function Editor() {
       height="100%"
       language={activeTab.language}
       value={activeTab.content}
-      theme="vs-dark"
+      theme={monacoTheme}
       onChange={(value) => {
         if (value !== undefined) {
           updateTabContent(activeTab.path, value);

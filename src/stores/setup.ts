@@ -12,6 +12,7 @@ interface SetupState {
 
   checkDeps: () => Promise<void>;
   installCli: () => Promise<void>;
+  installAll: () => Promise<void>;
   openNodeDownload: () => void;
   reset: () => void;
 }
@@ -64,6 +65,29 @@ export const useSetupStore = create<SetupState>((set) => ({
 
   openNodeDownload: () => {
     window.api.invoke(IPC_CHANNELS.SHELL_OPEN_EXTERNAL, 'https://nodejs.org/en/download');
+  },
+
+  installAll: async () => {
+    set({ phase: 'installing', logs: [], error: null });
+
+    const unsub = window.api.on(IPC_CHANNELS.SETUP_PROGRESS, (data: unknown) => {
+      const progress = data as SetupProgress;
+      if (progress.type === 'status' && progress.line === 'done') return;
+      set((s) => ({ logs: [...s.logs, progress.line] }));
+    });
+
+    try {
+      const result = (await window.api.invoke(IPC_CHANNELS.SETUP_INSTALL_ALL)) as InstallResult;
+      unsub();
+      if (result.success) {
+        set({ phase: 'success' });
+      } else {
+        set({ phase: 'error', error: result.error ?? '安装失败' });
+      }
+    } catch (err) {
+      unsub();
+      set({ phase: 'error', error: String(err) });
+    }
   },
 
   reset: () => set({ phase: 'idle', deps: null, logs: [], error: null }),

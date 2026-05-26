@@ -10,7 +10,7 @@ interface DependencySetupProps {
 }
 
 export function DependencySetup({ onReady }: DependencySetupProps) {
-  const { phase, deps, logs, error, checkDeps, installCli, openNodeDownload, reset } = useSetupStore();
+  const { phase, deps, logs, error, checkDeps, installCli, installAll, openNodeDownload, reset } = useSetupStore();
   const logEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,17 +57,21 @@ export function DependencySetup({ onReady }: DependencySetupProps) {
               NoCodeFlow 需要 Node.js 运行环境来安装 AI Agent 组件。
             </p>
             <div className="space-y-2">
-              <Button className="w-full" onClick={openNodeDownload}>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                下载 Node.js
+              <Button className="w-full" onClick={installAll}>
+                <Download className="h-4 w-4 mr-2" />
+                一键自动安装
               </Button>
-              <Button variant="outline" className="w-full" onClick={checkDeps}>
+              <Button variant="outline" className="w-full" onClick={openNodeDownload}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                手动下载 Node.js
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={checkDeps}>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                安装完成，重新检测
+                重新检测
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              下载 LTS 版本即可。安装完成后请点击"重新检测"。
+              "一键自动安装"会自动下载 Node.js 和 Claude Code CLI，需要管理员权限。
             </p>
           </CardContent>
         </Card>

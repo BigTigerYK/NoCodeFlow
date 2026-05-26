@@ -55,6 +55,7 @@ export const IPC_CHANNELS = {
   // 依赖安装
   SETUP_CHECK_DEPS: 'setup:check-deps',
   SETUP_INSTALL_CLI: 'setup:install-cli',
+  SETUP_INSTALL_ALL: 'setup:install-all',
   SETUP_PROGRESS: 'setup:progress',
   SHELL_OPEN_EXTERNAL: 'shell:open-external',
 } as const;

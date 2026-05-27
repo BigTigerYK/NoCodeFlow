@@ -1,7 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSetupStore } from '@/stores/setup';
 
@@ -10,8 +9,7 @@ interface DependencySetupProps {
 }
 
 export function DependencySetup({ onReady }: DependencySetupProps) {
-  const { phase, logs, error, checkAndInstall } = useSetupStore();
-  const logEndRef = useRef<HTMLDivElement>(null);
+  const { phase, error, checkAndInstall } = useSetupStore();
 
   useEffect(() => {
     checkAndInstall();
@@ -23,62 +21,29 @@ export function DependencySetup({ onReady }: DependencySetupProps) {
     }
   }, [phase, onReady]);
 
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [logs]);
-
-  // 正在检测或安装
-  if (phase === 'checking' || phase === 'installing') {
+  if (phase === 'initializing') {
     return (
       <div className="flex items-center justify-center h-full p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
-              {phase === 'checking' ? '正在检测依赖环境...' : '正在安装 Claude Code CLI...'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {phase === 'installing' && (
-              <>
-                <p className="text-xs text-muted-foreground">首次启动需要安装 AI 组件，请耐心等待。</p>
-                <ScrollArea className="h-48 w-full rounded border bg-muted/50">
-                  <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
-                    {logs.length === 0 ? '正在准备安装...' : logs.join('\n')}
-                    <div ref={logEndRef} />
-                  </pre>
-                </ScrollArea>
-              </>
-            )}
+          <CardContent className="pt-6 flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">正在初始化...</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // 安装失败
   if (phase === 'error') {
     return (
       <div className="flex items-center justify-center h-full p-4">
         <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <AlertCircle className="h-5 w-5 text-red-500" />
-              安装失败
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="pt-6 flex flex-col items-center gap-4">
+            <AlertCircle className="h-8 w-8 text-red-500" />
             <p className="text-sm text-red-500 font-mono">{error}</p>
-            {logs.length > 0 && (
-              <ScrollArea className="h-32 w-full rounded border bg-muted/50">
-                <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
-                  {logs.join('\n')}
-                </pre>
-              </ScrollArea>
-            )}
             <Button className="w-full" onClick={checkAndInstall}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              重试安装
+              重试
             </Button>
           </CardContent>
         </Card>

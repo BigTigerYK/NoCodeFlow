@@ -7,6 +7,16 @@ files:
   - dist/**/*
   - dist-electron/**/*
 
+extraResources:
+  - from: scripts
+    to: scripts
+    filter:
+      - "**/*"
+  - from: resources/node
+    to: node
+    filter:
+      - "**/*"
+
 # ─── Windows ───
 win:
   target:

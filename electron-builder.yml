@@ -12,6 +12,10 @@ extraResources:
     to: scripts
     filter:
       - "**/*"
+  - from: resources/node
+    to: node
+    filter:
+      - "**/*"
 
 # ─── Windows ───
 win:

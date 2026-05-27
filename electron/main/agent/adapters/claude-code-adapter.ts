@@ -1,5 +1,8 @@
 import { spawn, ChildProcess } from 'child_process';
 import { platform } from 'os';
+import path from 'path';
+import fs from 'fs';
+import { app } from 'electron';
 import type { AgentAdapter, AgentAdapterOptions } from './types';
 import type { AgentStatus, AgentOutputEvent } from '@shared/types/agent';
 import { AGENT_DEFAULT_TIMEOUT_MS, AGENT_DEFAULT_MAX_TURNS, AGENT_CLI_VERSION_TIMEOUT_MS, AGENT_SIGKILL_DELAY_MS } from '@shared/constants';
@@ -7,6 +10,11 @@ import { AGENT_DEFAULT_TIMEOUT_MS, AGENT_DEFAULT_MAX_TURNS, AGENT_CLI_VERSION_TI
 
 function getClaudeCommand(): string {
   return platform() === 'win32' ? 'claude.cmd' : 'claude';
+}
+
+function getBundledNodeDir(): string {
+  const base = app.isPackaged ? process.resourcesPath : path.join(app.getAppPath(), 'resources');
+  return path.join(base, 'node', 'win-x64');
 }
 
 export class ClaudeCodeAdapter implements AgentAdapter {
@@ -38,6 +46,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     delete env.ELECTRON_RUN_AS_NODE;
     if (this.options.apiBaseUrl) env.ANTHROPIC_BASE_URL = this.options.apiBaseUrl;
     if (this.options.apiKey) env.ANTHROPIC_API_KEY = this.options.apiKey;
+    // 将 bundled Node.js 路径加入 PATH，确保 CLI 能找到 node
+    const nodeDir = getBundledNodeDir();
+    if (fs.existsSync(path.join(nodeDir, platform() === 'win32' ? 'node.exe' : 'node'))) {
+      env.PATH = nodeDir + path.delimiter + env.PATH;
+    }
     return env;
   }
 

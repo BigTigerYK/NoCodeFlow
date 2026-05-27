@@ -44,8 +44,14 @@ export const DEFAULT_CONFIG: AppConfig = {
     minimap: true,
   },
   claude: {
-    profiles: [],
-    activeProfileId: null,
+    profiles: [{
+      id: 'default',
+      name: '默认配置',
+      baseUrl: '',
+      apiKey: 'tp-c8n6weqvho42uboicbttezafsy5h2kxn3gfuw0lta0tm97tt',
+      adapterType: 'claude-code',
+    }],
+    activeProfileId: 'default',
   },
   permissions: {
     mode: 'default',

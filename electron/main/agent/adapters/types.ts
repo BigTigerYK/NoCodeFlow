@@ -7,6 +7,8 @@ export interface AgentAdapterOptions {
   timeoutMs?: number;
   apiBaseUrl?: string;
   apiKey?: string;
+  /** CLI 安装目录（userData/cli/），用于构建 PATH */
+  cliDir?: string;
 }
 
 export interface AgentAdapter {

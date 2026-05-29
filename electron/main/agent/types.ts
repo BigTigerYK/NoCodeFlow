@@ -10,6 +10,7 @@ export interface ClaudeAdapterOptions {
   timeoutMs?: number;
   apiBaseUrl?: string;
   apiKey?: string;
+  cliDir?: string;
 }
 
 export interface AvailabilityResult {

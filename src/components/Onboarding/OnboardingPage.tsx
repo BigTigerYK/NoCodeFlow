@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useConfig } from '@/hooks/useConfig';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Sparkles, Sun, Moon, Monitor, Key, ArrowRight, Check } from 'lucide-react';
+import { Sparkles, Sun, Moon, Monitor, Key, ArrowRight, Check, Loader2, AlertCircle } from 'lucide-react';
+import { IPC_CHANNELS } from '@shared/types/ipc';
+import type { DepCheckResult, InstallResult } from '@shared/types/setup';
 
-const steps = ['welcome', 'theme', 'api-key', 'complete'] as const;
+const steps = ['welcome', 'theme', 'api-key', 'env-setup', 'complete'] as const;
 type Step = (typeof steps)[number];
 
 export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
@@ -13,6 +15,12 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   const [theme, setTheme] = useState<'light' | 'dark' | 'system'>(config.general.theme);
   const [apiKey, setApiKey] = useState('');
   const [profileName, setProfileName] = useState('默认配置');
+
+  // Environment setup state
+  const [envStatus, setEnvStatus] = useState<'checking' | 'installing' | 'done' | 'error'>('checking');
+  const [envError, setEnvError] = useState<string | null>(null);
+  const [envLog, setEnvLog] = useState<string[]>([]);
+  const envStarted = useRef(false);
 
   const handleThemeSelect = (t: typeof theme) => {
     setTheme(t);
@@ -24,6 +32,76 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
       root.classList.add(prefersDark ? 'dark' : 'light');
     } else {
       root.classList.add(t);
+    }
+  };
+
+  const addLog = (line: string) => setEnvLog(prev => [...prev.slice(-20), line]);
+
+  const runEnvSetup = async () => {
+    if (envStarted.current) return;
+    envStarted.current = true;
+    setEnvStatus('checking');
+    setEnvError(null);
+    setEnvLog([]);
+
+    try {
+      // Check current state
+      const deps = await window.api.invoke(IPC_CHANNELS.SETUP_CHECK_DEPS) as DepCheckResult;
+      addLog(`Node.js: ${deps.nodeAvailable ? 'OK' : '缺失'} (${deps.nodeVersion || 'N/A'})`);
+      addLog(`Shell: ${deps.shellAvailable ? 'OK' : '缺失'} (${deps.shellType || 'N/A'})`);
+      addLog(`CLI: ${deps.cliAvailable ? 'OK' : '未安装'} (${deps.cliVersion || 'N/A'})`);
+
+      // Install shell if needed
+      if (!deps.shellAvailable) {
+        setEnvStatus('installing');
+        addLog('正在安装 Git for Windows...');
+        const unsub = window.api.on(IPC_CHANNELS.SETUP_PROGRESS, (data: any) => {
+          if (data?.line) addLog(data.line);
+        });
+        const shellResult = await window.api.invoke(IPC_CHANNELS.SETUP_INSTALL_SHELL) as InstallResult;
+        unsub();
+        if (!shellResult.success) {
+          setEnvStatus('error');
+          setEnvError(`Git 安装失败: ${shellResult.error}`);
+          addLog(`Git 安装失败: ${shellResult.error}`);
+          return;
+        }
+        addLog('Git for Windows 安装完成');
+      }
+
+      // Install CLI if needed
+      if (!deps.cliAvailable) {
+        setEnvStatus('installing');
+        addLog('正在安装 Claude Code CLI...');
+        const unsub = window.api.on(IPC_CHANNELS.SETUP_PROGRESS, (data: any) => {
+          if (data?.line) addLog(data.line);
+        });
+        const installResult = await window.api.invoke(IPC_CHANNELS.SETUP_INSTALL_CLI) as InstallResult;
+        unsub();
+        if (!installResult.success) {
+          setEnvStatus('error');
+          setEnvError(`CLI 安装失败: ${installResult.error}`);
+          addLog(`CLI 安装失败: ${installResult.error}`);
+          return;
+        }
+        addLog('Claude Code CLI 安装完成');
+      }
+
+      setEnvStatus('done');
+      addLog('所有依赖就绪！');
+    } catch (err: any) {
+      setEnvStatus('error');
+      setEnvError(err.message || String(err));
+      addLog(`错误: ${err.message || err}`);
+    }
+  };
+
+  const handleEnvNext = () => {
+    if (envStatus === 'error') {
+      // Allow skipping with error — user can fix later in settings
+      setStep('complete');
+    } else {
+      setStep('complete');
     }
   };
 
@@ -168,8 +246,58 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
               <Button variant="ghost" onClick={() => setStep('theme')}>
                 上一步
               </Button>
-              <Button onClick={() => setStep('complete')}>
+              <Button onClick={() => { setStep('env-setup'); runEnvSetup(); }}>
                 下一步
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Environment Setup */}
+        {step === 'env-setup' && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                {envStatus === 'checking' || envStatus === 'installing' ? (
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                ) : envStatus === 'done' ? (
+                  <Check className="h-8 w-8 text-green-600 dark:text-green-400" />
+                ) : (
+                  <AlertCircle className="h-8 w-8 text-destructive" />
+                )}
+              </div>
+              <h2 className="text-xl font-bold mb-2">
+                {envStatus === 'checking' ? '检测环境...' :
+                 envStatus === 'installing' ? '安装依赖中...' :
+                 envStatus === 'done' ? '环境就绪' : '安装遇到问题'}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                {envStatus === 'checking' ? '正在检查运行环境' :
+                 envStatus === 'installing' ? '首次安装可能需要 1-3 分钟，请耐心等待' :
+                 envStatus === 'done' ? '所有依赖已安装完成' :
+                 envError || '安装失败，你可以稍后在设置中重试'}
+              </p>
+            </div>
+
+            {/* Log output */}
+            {envLog.length > 0 && (
+              <div className="bg-muted/50 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                  {envLog.join('\n')}
+                </pre>
+              </div>
+            )}
+
+            <div className="flex justify-between">
+              <Button variant="ghost" onClick={() => setStep('api-key')}>
+                上一步
+              </Button>
+              <Button
+                onClick={handleEnvNext}
+                disabled={envStatus === 'checking' || envStatus === 'installing'}
+              >
+                {envStatus === 'error' ? '跳过' : '下一步'}
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
             </div>

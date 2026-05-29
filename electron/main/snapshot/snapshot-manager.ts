@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import crypto from 'crypto';
+import { randomUUID } from 'crypto';
 import { MAX_SNAPSHOTS, SNAPSHOT_MAX_FILE_SIZE_BYTES } from '@shared/constants';
 import type { SnapshotMetadata } from '@shared/types/snapshot';
 
@@ -42,7 +42,7 @@ export class SnapshotManager {
         fileExisted = false;
       }
 
-      const id = crypto.randomUUID();
+      const id = randomUUID();
       const timestamp = Date.now();
       const sanitized = this.sanitizeFilename(relativePath);
       const dirName = `${new Date(timestamp).toISOString().replace(/:/g, '-')}--${sanitized}`;

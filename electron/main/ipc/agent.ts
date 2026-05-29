@@ -6,6 +6,7 @@ import { getPermissionManager, waitForPermissionResponse, removePendingConfirmat
 import { getSnapshotManager, initSnapshotManager } from './snapshot';
 import type { AgentOutputEvent } from '@shared/types/agent';
 import { logger } from '../logger';
+import { envManager } from '../env/environment-manager';
 
 let adapter: AgentAdapter | null = null;
 
@@ -86,10 +87,22 @@ async function handleAgentOutput(win: BrowserWindow | null, outputEvent: AgentOu
 }
 
 export function registerAgentHandlers(): void {
+  // 检测是否为 Anthropic 官方 API 端点（只匹配域名，不匹配路径）
+  function isAnthropicEndpoint(url: string | undefined): boolean {
+    if (!url) return true; // 没设 URL 用默认 Anthropic
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return host === 'api.anthropic.com' || host.endsWith('.anthropic.com');
+    } catch {
+      return false;
+    }
+  }
+
   ipcMain.handle(IPC_CHANNELS.AGENT_START, async (event, options: {
     workspacePath: string;
     model?: string;
     permissionMode?: 'default' | 'auto';
+    adapterType?: string;
   }) => {
     if (adapter) {
       adapter.stop();
@@ -101,14 +114,27 @@ export function registerAgentHandlers(): void {
     const activeId = decrypted.claude.activeProfileId;
     const activeProfile = profiles.find(p => p.id === activeId);
 
-    const adapterType = activeProfile?.adapterType || 'claude-code';
-    logger.info(`Starting agent with adapter: ${adapterType}`, 'agent');
+    // 前端指定适配器 > 配置的适配器 > 自动检测
+    let adapterType: string;
+    if (options.adapterType) {
+      adapterType = options.adapterType;
+    } else if (activeProfile?.adapterType) {
+      // 配置中明确指定了适配器，直接使用
+      adapterType = activeProfile.adapterType;
+    } else if (!isAnthropicEndpoint(activeProfile?.baseUrl)) {
+      // 非 Anthropic 端点，自动使用 openai 兼容适配器
+      adapterType = 'openai';
+    } else {
+      adapterType = 'claude-code';
+    }
+    logger.info(`Starting agent with adapter: ${adapterType} (auto=${!options.adapterType && !activeProfile?.adapterType}, cliDir=${envManager.cliDir})`, 'agent');
 
     adapter = createAdapter(adapterType, {
       workspacePath: options.workspacePath,
       model: activeProfile?.model || options.model,
       apiBaseUrl: activeProfile?.baseUrl,
       apiKey: activeProfile?.apiKey,
+      cliDir: envManager.cliDir,
     });
 
     initSnapshotManager(options.workspacePath);

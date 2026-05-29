@@ -12,11 +12,12 @@ export class ClaudeApiAdapter implements AgentAdapter {
   constructor(options: AgentAdapterOptions) {
     this.options = {
       workspacePath: options.workspacePath,
-      model: options.model ?? 'claude-sonnet-4-20250514',
+      model: options.model ?? '',
       maxTurns: options.maxTurns ?? 10,
       timeoutMs: options.timeoutMs ?? 120000,
       apiBaseUrl: options.apiBaseUrl ?? 'https://api.anthropic.com',
       apiKey: options.apiKey ?? '',
+      cliDir: options.cliDir ?? '',
     };
   }
 
@@ -28,15 +29,19 @@ export class ClaudeApiAdapter implements AgentAdapter {
   onError(cb: (error: Error) => void) { this.onErrorCallback = cb; }
 
   async checkAvailability() {
-    if (!this.options.apiKey) return { available: false, error: 'No API key configured' };
+    if (!this.options.apiKey) return { available: false, error: '未配置 API Key' };
     try {
       const resp = await fetch(`${this.options.apiBaseUrl}/v1/models`, {
         headers: { 'x-api-key': this.options.apiKey, 'anthropic-version': '2023-06-01' },
         signal: AbortSignal.timeout(10000),
       });
-      return resp.ok ? { available: true } : { available: false, error: `HTTP ${resp.status}` };
+      // OK 或者 404/405（代理可能不支持 /v1/models）都认为可用
+      if (resp.ok || resp.status === 404 || resp.status === 405) return { available: true };
+      // 401/403 是认证问题，需要报错
+      return { available: false, error: `API 返回 HTTP ${resp.status}` };
     } catch (err: any) {
-      return { available: false, error: err.message };
+      // 网络不通也允许尝试（可能只是 models 端点不可用，chat 端点正常）
+      return { available: true };
     }
   }
 

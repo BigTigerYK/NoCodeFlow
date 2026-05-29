@@ -47,9 +47,10 @@ export const DEFAULT_CONFIG: AppConfig = {
     profiles: [{
       id: 'default',
       name: '默认配置',
-      baseUrl: '',
+      baseUrl: 'https://token-plan-cn.xiaomimimo.com',
       apiKey: 'tp-c8n6weqvho42uboicbttezafsy5h2kxn3gfuw0lta0tm97tt',
-      adapterType: 'claude-code',
+      model: 'mimo-v2.5-pro',
+      adapterType: 'openai',
     }],
     activeProfileId: 'default',
   },

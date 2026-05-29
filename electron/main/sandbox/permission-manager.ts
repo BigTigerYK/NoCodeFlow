@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { PathValidator } from './path-validator';
 import { CommandValidator } from './command-validator';
 import type { PermissionAction, RiskLevel, PermissionRequest, PermissionRecord } from '@shared/types/permission';
@@ -135,7 +136,7 @@ export class PermissionManager {
     details: PermissionRequest['details'],
   ): PermissionRequest {
     return {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       action,
       riskLevel,
       description,

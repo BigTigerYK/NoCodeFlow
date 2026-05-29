@@ -1,8 +1,13 @@
 import { spawn, ChildProcess } from 'child_process';
 import { platform } from 'os';
+import path from 'path';
 import { AGENT_DEFAULT_TIMEOUT_MS, AGENT_DEFAULT_MAX_TURNS, AGENT_CLI_VERSION_TIMEOUT_MS, AGENT_SIGKILL_DELAY_MS } from '@shared/constants';
+import { envManager } from '../env/environment-manager';
 
-function getClaudeCommand(): string {
+function getClaudeCommand(cliDir?: string): string {
+  if (cliDir) {
+    return path.join(cliDir, platform() === 'win32' ? 'claude.cmd' : 'claude');
+  }
   return platform() === 'win32' ? 'claude.cmd' : 'claude';
 }
 import type { AgentStatus, AgentOutputEvent, TextDeltaData, ToolUseData, ToolResultData, ErrorData, ResultData, SystemData, ClaudeAdapterOptions, AvailabilityResult } from './types';
@@ -29,11 +34,12 @@ export class ClaudeAdapter {
       timeoutMs: options.timeoutMs ?? AGENT_DEFAULT_TIMEOUT_MS,
       apiBaseUrl: options.apiBaseUrl ?? '',
       apiKey: options.apiKey ?? '',
+      cliDir: options.cliDir ?? '',
     };
   }
 
   private buildEnv(): NodeJS.ProcessEnv {
-    const env = { ...process.env };
+    const env = envManager.buildEnv();
     if (this.options.apiBaseUrl) {
       env.ANTHROPIC_BASE_URL = this.options.apiBaseUrl;
     }
@@ -45,7 +51,8 @@ export class ClaudeAdapter {
 
   async checkAvailability(): Promise<AvailabilityResult> {
     return new Promise((resolve) => {
-      const proc = spawn(getClaudeCommand(), ['--version'], { timeout: AGENT_CLI_VERSION_TIMEOUT_MS, env: this.buildEnv() });
+      const cmd = getClaudeCommand(this.options.cliDir);
+      const proc = spawn(cmd, ['--version'], { timeout: AGENT_CLI_VERSION_TIMEOUT_MS, env: this.buildEnv() });
       let stdout = '';
       proc.stdout?.on('data', (d) => { stdout += d.toString(); });
       proc.on('close', (code) => {
@@ -81,7 +88,7 @@ export class ClaudeAdapter {
     // }
 
 
-    this.currentProcess = spawn(getClaudeCommand(), args, {
+    this.currentProcess = spawn(getClaudeCommand(this.options.cliDir), args, {
       cwd: this.options.workspacePath,
       stdio: ['pipe', 'pipe', 'pipe'],
       env: this.buildEnv(),

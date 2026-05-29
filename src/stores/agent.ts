@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import type { AgentOutputEvent, TokenUsage } from '@shared/types/agent';
 import type { AppConfig } from '@shared/types/config';
+import type { DepCheckResult, InstallResult } from '@shared/types/setup';
 import { agentEventBus } from '@/lib/event-bus';
 import { TimelineBuilder } from '@/lib/timeline-builder';
 import type { TimelineEntry, ToolUseEntry, ToolResultEntry, ResultEntry } from '@/lib/output-parser';
@@ -21,6 +22,7 @@ export interface AgentMessage {
 interface AgentState {
   status: 'idle' | 'starting' | 'running' | 'error' | 'completed';
   isAvailable: boolean;
+  isInstalling: boolean;
   cliVersion: string | null;
   messages: AgentMessage[];
   currentInput: string;
@@ -45,6 +47,7 @@ interface AgentState {
 export const useAgentStore = create<AgentState>((set, get) => ({
   status: 'idle',
   isAvailable: false,
+  isInstalling: false,
   cliVersion: null,
   messages: [],
   currentInput: '',
@@ -59,11 +62,94 @@ export const useAgentStore = create<AgentState>((set, get) => ({
     _outputUnsub?.();
     _statusUnsub?.();
 
-    // Read permission mode from config
+    // Step 1: Check dependencies
+    const deps = await window.api.invoke(IPC_CHANNELS.SETUP_CHECK_DEPS) as DepCheckResult;
+
+    // Step 1.5: If shell is not available on Windows, auto-install Git for Windows
+    if (!deps.shellAvailable) {
+      set({ isInstalling: true });
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: '正在安装 Git for Windows（Claude Code 依赖），请稍候...',
+        timestamp: Date.now(),
+      });
+
+      const unsubShell = window.api.on(IPC_CHANNELS.SETUP_PROGRESS, () => {});
+      const shellResult = await window.api.invoke(IPC_CHANNELS.SETUP_INSTALL_SHELL) as InstallResult;
+      unsubShell();
+      set({ isInstalling: false });
+
+      if (!shellResult.success) {
+        set({ isAvailable: false, _outputUnsub: null, _statusUnsub: null });
+        get()._addMessage({
+          id: crypto.randomUUID(),
+          role: 'error',
+          content: `Git for Windows 安装失败：${shellResult.error ?? '未知错误'}`,
+          timestamp: Date.now(),
+        });
+        return false;
+      }
+
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: 'Git for Windows 安装完成',
+        timestamp: Date.now(),
+      });
+
+      // 重新检测依赖
+      const recheck = await window.api.invoke(IPC_CHANNELS.SETUP_CHECK_DEPS) as DepCheckResult;
+      if (!recheck.shellAvailable) {
+        set({ isAvailable: false, _outputUnsub: null, _statusUnsub: null });
+        get()._addMessage({
+          id: crypto.randomUUID(),
+          role: 'error',
+          content: 'Git for Windows 安装后仍未检测到，请重启应用后重试',
+          timestamp: Date.now(),
+        });
+        return false;
+      }
+    }
+
+    // Step 2: If CLI is not available, auto-install
+    if (!deps.cliAvailable) {
+      set({ isInstalling: true });
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: '正在自动安装 Claude Code CLI，请稍候...',
+        timestamp: Date.now(),
+      });
+
+      const unsub = window.api.on(IPC_CHANNELS.SETUP_PROGRESS, () => {});
+      const installResult = await window.api.invoke(IPC_CHANNELS.SETUP_INSTALL_CLI) as InstallResult;
+      unsub();
+      set({ isInstalling: false });
+
+      if (!installResult.success) {
+        set({ isAvailable: false, _outputUnsub: null, _statusUnsub: null });
+        get()._addMessage({
+          id: crypto.randomUUID(),
+          role: 'error',
+          content: `Claude Code CLI 安装失败：${installResult.error ?? '未知错误'}`,
+          timestamp: Date.now(),
+        });
+        return false;
+      }
+
+      get()._addMessage({
+        id: crypto.randomUUID(),
+        role: 'system',
+        content: 'Claude Code CLI 安装完成，正在启动...',
+        timestamp: Date.now(),
+      });
+    }
+
+    // Step 3: Initialize agent (main process auto-detects adapter type)
     const config = await window.api.invoke(IPC_CHANNELS.CONFIG_GET_ALL) as AppConfig;
     const permissionMode = config.permissions?.mode ?? 'default';
 
-    // Initialize permission manager in main process
     await window.api.invoke(IPC_CHANNELS.PERMISSION_INIT, workspacePath);
 
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_START, {
@@ -91,7 +177,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       set({ isAvailable: false, _outputUnsub: null, _statusUnsub: null });
       get()._addMessage({
         id: crypto.randomUUID(),
-        role: 'system',
+        role: 'error',
         content: `Claude CLI 不可用：${result.error}`,
         timestamp: Date.now(),
       });

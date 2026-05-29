@@ -16,7 +16,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ workspacePath }: ChatPanelProps) {
-  const { messages, timelineEntries, status, isAvailable, sendMessage, stopAgent, initialize } =
+  const { messages, timelineEntries, status, isAvailable, isInstalling, sendMessage, stopAgent, initialize } =
     useAgentStore();
   const { initialize: initPermission, dispose: disposePermission } = usePermissionStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -72,6 +72,7 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
   }, [messages, timelineEntries]);
 
   if (!isAvailable && initializedRef.current) {
+    // Show dependency setup as fallback if auto-install in initialize() didn't work
     return (
       <DependencySetup
         onReady={() => {
@@ -140,7 +141,7 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
         </div>
       )}
 
-      <ChatInput onSend={sendMessage} disabled={status === 'running'} />
+      <ChatInput onSend={sendMessage} disabled={status === 'running' || isInstalling} />
 
       <PermissionDialog />
     </div>

@@ -6,6 +6,7 @@ import { registerPermissionHandlers } from './permission';
 import { registerSnapshotHandlers, cleanupSnapshotManager } from './snapshot';
 import { registerDocumentHandlers } from './document';
 import { registerSetupHandlers } from './setup';
+import { registerDebugHandlers } from './debug';
 
 export function registerAllIpcHandlers(): void {
   registerFsHandlers();
@@ -16,6 +17,7 @@ export function registerAllIpcHandlers(): void {
   registerAgentHandlers();
   registerDocumentHandlers();
   registerSetupHandlers();
+  registerDebugHandlers();
 }
 
 export function cleanupAllIpcHandlers(): void {

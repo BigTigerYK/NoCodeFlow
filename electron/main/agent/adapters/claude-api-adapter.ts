@@ -82,7 +82,17 @@ export class ClaudeApiAdapter implements AgentAdapter {
 
       this.emitOutput({
         type: 'result',
-        data: { result: data.content?.map((b: any) => b.text).join('') || '', duration_ms: 0, num_turns: 1 },
+        data: {
+          result: data.content?.map((b: any) => b.text).join('') || '',
+          duration_ms: 0,
+          num_turns: 1,
+          usage: data.usage ? {
+            input_tokens: data.usage.input_tokens ?? 0,
+            output_tokens: data.usage.output_tokens ?? 0,
+            cache_creation_input_tokens: data.usage.cache_creation_input_tokens,
+            cache_read_input_tokens: data.usage.cache_read_input_tokens,
+          } : undefined,
+        },
         timestamp: ts,
       });
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
-import type { AgentOutputEvent } from '@shared/types/agent';
+import type { AgentOutputEvent, TokenUsage } from '@shared/types/agent';
 import type { AppConfig } from '@shared/types/config';
 import { agentEventBus } from '@/lib/event-bus';
 import { TimelineBuilder } from '@/lib/timeline-builder';
@@ -15,6 +15,7 @@ export interface AgentMessage {
   toolEntry?: ToolUseEntry;
   toolResult?: ToolResultEntry;
   resultEntry?: ResultEntry;
+  usage?: TokenUsage;
 }
 
 interface AgentState {
@@ -91,7 +92,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       get()._addMessage({
         id: crypto.randomUUID(),
         role: 'system',
-        content: `AI 运行时不可用：${result.error}`,
+        content: `Claude CLI 不可用：${result.error}`,
         timestamp: Date.now(),
       });
       return false;
@@ -101,17 +102,14 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   sendMessage: async (message: string) => {
     if (!message.trim()) return;
 
-    // Add user message
     get()._addMessage({
       id: crypto.randomUUID(),
       role: 'user',
       content: message,
       timestamp: Date.now(),
     });
-    set({ currentInput: '' });
 
-    // Add empty assistant message BEFORE IPC call —
-    // CLI events may arrive before ipc.invoke returns
+    // Create assistant message BEFORE sending so streaming events can append to it
     get()._addMessage({
       id: crypto.randomUUID(),
       role: 'assistant',
@@ -119,14 +117,11 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       timestamp: Date.now(),
       rawEvents: [],
     });
+    set({ currentInput: '' });
 
     const result = await window.api.invoke(IPC_CHANNELS.AGENT_SEND, message) as { success: boolean; error?: string };
 
     if (!result.success) {
-      // User stopped the agent — silently discard, don't show error
-      if (result.error?.includes('stopped by user')) return;
-
-      // Replace empty assistant message with error
       get()._addMessage({
         id: crypto.randomUUID(),
         role: 'error',
@@ -165,7 +160,6 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   }),
 
   _handleOutputEvent: (event: AgentOutputEvent) => {
-
     // Emit to Event Bus for multi-consumer support (Timeline, etc.)
     agentEventBus.emit('agent:output', event);
 
@@ -235,6 +229,20 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
       case 'result':
         // Result text is already shown via assistant text events — no need to duplicate
+        // Attach token usage to the last assistant message
+        if (data.usage) {
+          set((s) => {
+            const messages = s.messages;
+            for (let i = messages.length - 1; i >= 0; i--) {
+              if (messages[i].role === 'assistant') {
+                const updated = [...messages];
+                updated[i] = { ...updated[i], usage: data.usage as TokenUsage };
+                return { messages: updated };
+              }
+            }
+            return s;
+          });
+        }
         break;
 
       case 'error':

@@ -123,11 +123,15 @@ export function registerAgentHandlers(): void {
     const win = BrowserWindow.fromWebContents(event.sender);
 
     adapter.onOutput((outputEvent) => {
-      handleAgentOutput(win, outputEvent);
+      if (win && !win.isDestroyed()) {
+        handleAgentOutput(win, outputEvent);
+      }
     });
 
     adapter.onStatusChange((status) => {
-      win?.webContents.send(IPC_CHANNELS.AGENT_STATUS, { status });
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(IPC_CHANNELS.AGENT_STATUS, { status });
+      }
     });
 
     return { success: true, version: availability.version };

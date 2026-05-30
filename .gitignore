@@ -10,9 +10,10 @@ package-lock.json
 *.log
 docs/
 build/
+release/
+resources/node/
 !阶段性测试流程.md
 !技术分享文档/阶段二技术分享.md
 !技术分享文档/阶段一技术分享.md
 !技术分享文档/阶段三技术分享.md
 !技术分享文档/阶段四技术分享.md
-release/

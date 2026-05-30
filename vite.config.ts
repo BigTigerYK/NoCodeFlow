@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import electronRenderer from 'vite-plugin-electron-renderer';
+import { spawn } from 'child_process';
 import path from 'path';
 
 export default defineConfig({
@@ -10,8 +11,16 @@ export default defineConfig({
     electron([
       {
         entry: 'electron/main/index.ts',
-        onstart(options) {
-          options.startup();
+        onstart(args) {
+          const electronPath = require('electron');
+          const env = { ...process.env };
+          delete env.ELECTRON_RUN_AS_NODE;
+          const child = spawn(electronPath, ['.', '--no-sandbox'], {
+            cwd: path.resolve(__dirname),
+            stdio: 'inherit',
+            env,
+          });
+          child.on('close', () => process.exit());
         },
         vite: {
           build: {

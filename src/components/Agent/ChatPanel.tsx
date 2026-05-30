@@ -26,6 +26,12 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
 
   const userMessages = useMemo(() => messages.filter((m) => m.role === 'user'), [messages]);
 
+  // Only show user/assistant/system/error in main chat; tool_use/result belong in timeline
+  const chatMessages = useMemo(
+    () => messages.filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system' || m.role === 'error'),
+    [messages]
+  );
+
   const scrollToMessage = useCallback((id: string) => {
     const el = document.querySelector(`[data-message-id="${id}"]`);
     if (el) {
@@ -93,13 +99,13 @@ export function ChatPanel({ workspacePath }: ChatPanelProps) {
 
       <div className="flex-1 relative overflow-hidden">
         <div ref={scrollRef} className="h-full overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && timelineEntries.length === 0 ? (
+          {chatMessages.length === 0 && timelineEntries.length === 0 ? (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               开始与 NoCodeFlow AI 对话
             </div>
           ) : (
             <>
-              {messages.map((msg) => (
+              {chatMessages.map((msg) => (
                 <div key={msg.id} data-message-id={msg.id}>
                   <MessageBubble message={msg} highlight={highlightId === msg.id} />
                 </div>

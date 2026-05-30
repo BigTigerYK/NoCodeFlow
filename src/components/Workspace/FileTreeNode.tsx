@@ -14,11 +14,22 @@ import {
   FolderPlus,
   Pencil,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { FileNode } from '@shared/types/workspace';
 import { getIconTypeForFile } from '@shared/utils/file-extensions';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/Common/Toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,34 +120,51 @@ export const FileTreeNode = memo(function FileTreeNode({
     expandedPaths,
     selectedPath,
     toggleExpand,
-    selectFile,
     openFile,
     createFile,
     createDirectory,
     deletePath,
     renamePath,
+    movePath,
   } = useWorkspaceStore();
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [creating, setCreating] = useState<'file' | 'dir' | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const dragCounterRef = useRef(0);
 
   const isExpanded = expandedPaths.has(node.path);
   const isSelected = selectedPath === node.path;
   const isDir = node.type === 'directory';
 
-  const handleClick = () => {
-    if (isRenaming || creating) return;
+  // Normalize path for comparison (handle Windows backslashes)
+  const normalizePath = (p: string) => p.replace(/\\/g, '/');
+
+  // Check if targetPath is a descendant of sourcePath
+  const isDescendant = (sourcePath: string, targetPath: string) => {
+    const normalizedSource = normalizePath(sourcePath).replace(/[\/]+$/, '') + '/';
+    const normalizedTarget = normalizePath(targetPath);
+    return normalizedTarget.startsWith(normalizedSource);
+  };
+
+  const handleClick = async () => {
+    if (isRenaming || creating || isLoading) return;
     if (isDir) {
       toggleExpand(node.path);
     } else {
-      selectFile(node.path);
-      openFile(node.path);
+      try {
+        await openFile(node.path);
+      } catch (err: any) {
+        toast.error(`打开文件失败: ${err.message}`);
+      }
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isRenaming || creating) return;
+    if (isRenaming || creating || isLoading) return;
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       handleClick();
@@ -159,10 +187,14 @@ export const FileTreeNode = memo(function FileTreeNode({
 
   const handleRename = async (newName: string) => {
     setIsRenaming(false);
+    setIsLoading(true);
     try {
       await renamePath(node.path, newName);
+      toast.success('重命名成功');
     } catch (err: any) {
-      console.warn('Rename failed:', err.message);
+      toast.error(`重命名失败: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -170,27 +202,102 @@ export const FileTreeNode = memo(function FileTreeNode({
     async (name: string) => {
       const type = creating;
       setCreating(null);
+      setIsLoading(true);
       try {
         if (type === 'file') {
           await createFile(node.path, name);
+          toast.success(`文件 "${name}" 创建成功`);
         } else {
           await createDirectory(node.path, name);
+          toast.success(`文件夹 "${name}" 创建成功`);
         }
       } catch (err: any) {
-        console.warn('Create failed:', err.message);
+        toast.error(`创建失败: ${err.message}`);
+      } finally {
+        setIsLoading(false);
       }
     },
     [creating, node.path, createFile, createDirectory],
   );
 
   const handleDelete = async () => {
-    const label = isDir ? '文件夹' : '文件';
-    if (!window.confirm(`确定删除${label} "${node.name}" 吗？`)) return;
+    setDeleteConfirmOpen(false);
+    setIsLoading(true);
     try {
       await deletePath(node.path);
+      toast.success(`已删除 "${node.name}"`);
     } catch (err: any) {
-      console.warn('Delete failed:', err.message);
+      toast.error(`删除失败: ${err.message}`);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation();
+    e.dataTransfer.setData('application/nocodeflow-file-path', node.path);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    // Only allow drop on directories
+    if (!isDir) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!isDir) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!isDir) return;
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current === 0) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    if (!isDir) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
+
+    const sourcePath = e.dataTransfer.getData('application/nocodeflow-file-path');
+    if (!sourcePath) return;
+
+    // Prevent dropping onto itself
+    if (sourcePath === node.path) return;
+
+    // Prevent dropping a folder into its own descendant
+    if (isDescendant(sourcePath, node.path)) {
+      toast.error('不能将文件夹移动到其自身内部');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await movePath(sourcePath, node.path);
+      toast.success('移动成功');
+    } catch (err: any) {
+      toast.error(`移动失败: ${err.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDragEnd = () => {
+    dragCounterRef.current = 0;
+    setIsDragOver(false);
   };
 
   const Icon = isDir
@@ -208,19 +315,37 @@ export const FileTreeNode = memo(function FileTreeNode({
             aria-expanded={isDir ? isExpanded : undefined}
             aria-selected={isSelected}
             tabIndex={0}
+            draggable={!isRenaming && !creating}
             className={cn(
               'flex items-center gap-1 px-2 py-0.5 cursor-pointer text-sm hover:bg-accent/50 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
               isSelected && 'bg-accent',
+              isLoading && 'opacity-60 pointer-events-none',
+              isDragOver && 'bg-primary/20 ring-2 ring-primary',
             )}
             style={{ paddingLeft: `${depth * 16 + 8}px` }}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
+            onPointerDown={(e) => {
+              // Prevent DropdownMenuTrigger from opening menu on left-click.
+              // Menu should only open via right-click (onContextMenu).
+              if (e.button === 0) {
+                e.preventDefault();
+              }
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
               setMenuOpen(true);
             }}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onDragEnd={handleDragEnd}
           >
-            {isDir ? (
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 shrink-0 text-muted-foreground animate-spin" />
+            ) : isDir ? (
               isExpanded ? (
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
               ) : (
@@ -265,7 +390,7 @@ export const FileTreeNode = memo(function FileTreeNode({
             重命名
           </DropdownMenuItem>
           <DropdownMenuItem
-            onClick={handleDelete}
+            onClick={() => setDeleteConfirmOpen(true)}
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="h-4 w-4 mr-2" />
@@ -273,6 +398,28 @@ export const FileTreeNode = memo(function FileTreeNode({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>
+              确定要删除{isDir ? '文件夹' : '文件'} &quot;{node.name}&quot; 吗？
+              {isDir && '该操作将删除文件夹内的所有内容。'}
+              此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Inline create input under directory */}
       {isDir && creating && (

@@ -150,34 +150,22 @@ export function registerFsHandlers(): void {
         if (!isPathWithinWorkspace(filePath, currentWorkspaceRoot)) {
           return { error: 'Access denied: path is outside workspace' };
         }
-        try {
-          const realPath = await fs.realpath(filePath);
-          if (!isPathWithinWorkspace(realPath, currentWorkspaceRoot)) {
-            return { error: 'Access denied: symlink points outside workspace' };
-          }
-        } catch {
-          // File doesn't exist - check parent directory
-          const parentDir = path.dirname(filePath);
-          try {
-            const realParent = await fs.realpath(parentDir);
-            if (!isPathWithinWorkspace(realParent, currentWorkspaceRoot)) {
-              return { error: 'Access denied: parent directory outside workspace' };
-            }
-          } catch {
-            // Parent doesn't exist either - read will fail naturally
-          }
-        }
-        const stat = await fs.stat(filePath);
 
+        const stat = await fs.stat(filePath);
         if (stat.size > FILE_MAX_SIZE_BYTES) {
           return { error: 'File too large (max 10MB)' };
         }
 
-        if (await isBinaryFile(filePath)) {
-          return { error: 'Binary file cannot be opened in editor' };
+        // Read once and check for binary content in the same buffer
+        const buf = await fs.readFile(filePath);
+        const checkLen = Math.min(buf.length, BINARY_CHECK_BUFFER_SIZE);
+        for (let i = 0; i < checkLen; i++) {
+          if (buf[i] === 0) {
+            return { error: 'Binary file cannot be opened in editor' };
+          }
         }
 
-        const content = await fs.readFile(filePath, 'utf-8');
+        const content = buf.toString('utf-8');
         return { data: { content, encoding: 'utf-8' } };
       } catch (err: any) {
         return { error: err.message };
@@ -411,6 +399,41 @@ export function registerFsHandlers(): void {
           // Target doesn't exist - good
         }
         await fs.rename(oldPath, newPath);
+        return { data: { newPath } };
+      } catch (err: any) {
+        return { error: err.message };
+      }
+    },
+  );
+
+  // Move file or directory to a different parent
+  ipcMain.handle(
+    IPC_CHANNELS.FS_MOVE,
+    async (_event, args: { sourcePath: string; targetDir: string }) => {
+      try {
+        const { sourcePath, targetDir } = args;
+        if (!currentWorkspaceRoot) return { error: 'No workspace open' };
+        if (!isPathWithinWorkspace(sourcePath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: source is outside workspace' };
+        }
+        if (!isPathWithinWorkspace(targetDir, currentWorkspaceRoot)) {
+          return { error: 'Access denied: target is outside workspace' };
+        }
+        const sourceName = path.basename(sourcePath);
+        const newPath = path.join(targetDir, sourceName);
+        if (!isPathWithinWorkspace(newPath, currentWorkspaceRoot)) {
+          return { error: 'Access denied: target path is outside workspace' };
+        }
+        // Check target doesn't exist
+        try {
+          await fs.access(newPath);
+          return { error: `"${sourceName}" already exists in the target folder` };
+        } catch {
+          // Target doesn't exist - good
+        }
+        // Ensure target directory exists
+        await fs.mkdir(targetDir, { recursive: true });
+        await fs.rename(sourcePath, newPath);
         return { data: { newPath } };
       } catch (err: any) {
         return { error: err.message };

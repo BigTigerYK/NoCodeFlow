@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   FS_CREATE_DIR: 'fs:create-dir',
   FS_DELETE: 'fs:delete',
   FS_RENAME: 'fs:rename',
+  FS_MOVE: 'fs:move',
 
   // 配置
   CONFIG_GET: 'config:get',

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import MonacoEditor, { OnMount } from '@monaco-editor/react';
+import MonacoEditor, { OnMount, loader } from '@monaco-editor/react';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useConfig } from '@/hooks/useConfig';
+
+// Preload Monaco editor workers when this module is imported
+loader.init().catch(() => {});
 
 function useMonacoTheme(): string {
   const { config } = useConfig();
@@ -53,31 +56,33 @@ export function Editor() {
   };
 
   return (
-    <MonacoEditor
-      height="100%"
-      language={activeTab.language}
-      value={activeTab.content}
-      theme={monacoTheme}
-      onChange={(value) => {
-        if (value !== undefined) {
-          updateTabContent(activeTab.path, value);
-        }
-      }}
-      onMount={handleEditorMount}
-      options={{
-        fontSize: config.general.fontSize,
-        tabSize: config.editor.tabSize,
-        wordWrap: config.editor.wordWrap,
-        minimap: { enabled: config.editor.minimap },
-        automaticLayout: true,
-        scrollBeyondLastLine: false,
-        padding: { top: 8 },
-        lineNumbers: 'on',
-        renderLineHighlight: 'line',
-        smoothScrolling: true,
-        cursorBlinking: 'smooth',
-        cursorSmoothCaretAnimation: 'on',
-      }}
-    />
+    <div className="h-full w-full">
+      <MonacoEditor
+        height="100%"
+        language={activeTab.language}
+        value={activeTab.content}
+        theme={monacoTheme}
+        onChange={(value) => {
+          if (value !== undefined) {
+            updateTabContent(activeTab.path, value);
+          }
+        }}
+        onMount={handleEditorMount}
+        options={{
+          fontSize: config.general.fontSize,
+          tabSize: config.editor.tabSize,
+          wordWrap: config.editor.wordWrap,
+          minimap: { enabled: config.editor.minimap },
+          automaticLayout: true,
+          scrollBeyondLastLine: false,
+          padding: { top: 8 },
+          lineNumbers: 'on',
+          renderLineHighlight: 'line',
+          smoothScrolling: true,
+          cursorBlinking: 'smooth',
+          cursorSmoothCaretAnimation: 'on',
+        }}
+      />
+    </div>
   );
 }

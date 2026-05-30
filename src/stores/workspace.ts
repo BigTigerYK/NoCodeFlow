@@ -43,6 +43,7 @@ interface WorkspaceState {
   createDirectory: (dirPath: string, dirName: string) => Promise<string>;
   deletePath: (filePath: string) => Promise<void>;
   renamePath: (oldPath: string, newName: string) => Promise<string>;
+  movePath: (sourcePath: string, targetDir: string) => Promise<string>;
 }
 
 interface InvokeResult<T = unknown> {
@@ -254,9 +255,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     await ipcInvoke(IPC_CHANNELS.FS_DELETE, { filePath });
     // Close any open tabs for deleted path or children
     const { openTabs, activeTabPath } = get();
-    const filtered = openTabs.filter((t) => !t.path.startsWith(filePath));
+    const normalizedDeletePath = filePath.replace(/\\/g, '/');
+    const deletePathPrefix = normalizedDeletePath.replace(/[\\/]+$/, '') + '/';
+    const filtered = openTabs.filter((t) => {
+      const normalizedTabPath = t.path.replace(/\\/g, '/');
+      return normalizedTabPath !== normalizedDeletePath && !normalizedTabPath.startsWith(deletePathPrefix);
+    });
+    const normalizedActivePath = activeTabPath?.replace(/\\/g, '/') || null;
     let newActive = activeTabPath;
-    if (activeTabPath && activeTabPath.startsWith(filePath)) {
+    if (normalizedActivePath === normalizedDeletePath || normalizedActivePath?.startsWith(deletePathPrefix)) {
       newActive = filtered.length > 0 ? filtered[filtered.length - 1].path : null;
     }
     set({ openTabs: filtered, activeTabPath: newActive });
@@ -265,16 +272,66 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   renamePath: async (oldPath: string, newName: string) => {
     const result = await ipcInvoke<{ newPath: string }>(IPC_CHANNELS.FS_RENAME, { oldPath, newName });
-    // Update open tabs that match the old path
+    // Update open tabs that match the old path or are children of it
     const { openTabs, activeTabPath } = get();
+    const oldPathPrefix = oldPath.replace(/[\\/]+$/, '') + '/';
     const updatedTabs = openTabs.map((t) => {
-      if (t.path === oldPath) {
+      const normalizedTabPath = t.path.replace(/\\/g, '/');
+      if (normalizedTabPath === oldPath.replace(/\\/g, '/')) {
         return { ...t, path: result.newPath, name: newName, language: getLanguageForFile(result.newPath) };
+      }
+      if (normalizedTabPath.startsWith(oldPathPrefix)) {
+        const relativePath = normalizedTabPath.slice(oldPathPrefix.length);
+        const newPath = result.newPath.replace(/\\/g, '/') + '/' + relativePath;
+        const displayName = newPath.split('/').pop() || newPath;
+        return { ...t, path: newPath, name: displayName };
       }
       return t;
     });
-    const newActive = activeTabPath === oldPath ? result.newPath : activeTabPath;
+    const normalizedOldPath = oldPath.replace(/\\/g, '/');
+    const normalizedActivePath = activeTabPath?.replace(/\\/g, '/') || null;
+    let newActive = activeTabPath;
+    if (normalizedActivePath === normalizedOldPath) {
+      newActive = result.newPath;
+    } else if (normalizedActivePath?.startsWith(oldPathPrefix)) {
+      const relativePath = normalizedActivePath.slice(oldPathPrefix.length);
+      newActive = result.newPath.replace(/\\/g, '/') + '/' + relativePath;
+    }
     set({ openTabs: updatedTabs, activeTabPath: newActive, selectedPath: result.newPath });
+    await get().refreshTree();
+    return result.newPath;
+  },
+
+  movePath: async (sourcePath: string, targetDir: string) => {
+    const result = await ipcInvoke<{ newPath: string }>(IPC_CHANNELS.FS_MOVE, { sourcePath, targetDir });
+    // Update open tabs that match the source path or are children of it
+    const { openTabs, activeTabPath } = get();
+    const sourcePathPrefix = sourcePath.replace(/[\\/]+$/, '') + '/';
+    const normalizedSourcePath = sourcePath.replace(/\\/g, '/');
+    const updatedTabs = openTabs.map((t) => {
+      const normalizedTabPath = t.path.replace(/\\/g, '/');
+      if (normalizedTabPath === normalizedSourcePath) {
+        return { ...t, path: result.newPath, name: result.newPath.split(/[\\/]/).pop() || t.name };
+      }
+      if (normalizedTabPath.startsWith(sourcePathPrefix)) {
+        const relativePath = normalizedTabPath.slice(sourcePathPrefix.length);
+        const newPath = result.newPath.replace(/\\/g, '/') + '/' + relativePath;
+        const displayName = newPath.split('/').pop() || newPath;
+        return { ...t, path: newPath, name: displayName };
+      }
+      return t;
+    });
+    const normalizedActivePath = activeTabPath?.replace(/\\/g, '/') || null;
+    let newActive = activeTabPath;
+    if (normalizedActivePath === normalizedSourcePath) {
+      newActive = result.newPath;
+    } else if (normalizedActivePath?.startsWith(sourcePathPrefix)) {
+      const relativePath = normalizedActivePath.slice(sourcePathPrefix.length);
+      newActive = result.newPath.replace(/\\/g, '/') + '/' + relativePath;
+    }
+    set({ openTabs: updatedTabs, activeTabPath: newActive, selectedPath: result.newPath });
+    // Expand target directory to show the moved item
+    get().expandPath(targetDir);
     await get().refreshTree();
     return result.newPath;
   },

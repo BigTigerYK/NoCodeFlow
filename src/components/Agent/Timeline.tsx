@@ -118,15 +118,6 @@ function ToolUseItem({ entry, result }: { entry: ToolUseEntry; result?: ToolResu
   );
 }
 
-function ResultItem({ entry: _entry }: { entry: TimelineEntry & { kind: 'result' } }) {
-  return (
-    <div className="flex items-center gap-2 py-1.5 px-1">
-      <CheckCircle2 className="h-4 w-4 text-green-400" />
-      <span className="text-sm text-muted-foreground">任务完成</span>
-    </div>
-  );
-}
-
 function ErrorItem({ entry }: { entry: TimelineEntry & { kind: 'error' } }) {
   return (
     <div className="flex items-start gap-2 py-1.5 px-1">
@@ -137,7 +128,7 @@ function ErrorItem({ entry }: { entry: TimelineEntry & { kind: 'error' } }) {
 }
 
 export function TimelinePanel() {
-  const { timelineEntries, status } = useAgentStore();
+  const { timelineEntries } = useAgentStore();
 
   if (timelineEntries.length === 0) return null;
 
@@ -149,9 +140,9 @@ export function TimelinePanel() {
     }
   }
 
-  // Only show tool_use and result/error entries (skip text and system)
+  // Only show tool_use and error entries (skip text, system, and result — result is obvious from assistant response)
   const displayEntries = timelineEntries.filter(
-    (e) => e.kind === 'tool_use' || e.kind === 'result' || e.kind === 'error'
+    (e) => e.kind === 'tool_use' || e.kind === 'error'
   );
 
   if (displayEntries.length === 0) return null;
@@ -168,24 +159,12 @@ export function TimelinePanel() {
                 result={resultMap.get(entry.toolId)}
               />
             );
-          case 'result':
-            return <ResultItem key={entry.id} entry={entry} />;
           case 'error':
             return <ErrorItem key={entry.id} entry={entry} />;
           default:
             return null;
         }
       })}
-
-      {/* AI thinking indicator */}
-      {status === 'running' && (
-        <div className="flex items-center gap-2 py-1.5 px-1">
-          <div className="h-4 w-4 rounded-full bg-purple/20 flex items-center justify-center">
-            <div className="h-2 w-2 rounded-full bg-purple animate-pulse" />
-          </div>
-          <span className="text-sm text-purple animate-pulse">AI 思考中...</span>
-        </div>
-      )}
     </div>
   );
 }

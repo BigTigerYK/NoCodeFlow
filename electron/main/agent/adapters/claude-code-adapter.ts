@@ -29,6 +29,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   private killTimer: ReturnType<typeof setTimeout> | null = null;
   private stoppedByUser = false;
   private sendReject: ((reason: Error) => void) | null = null;
+  private cachedEnv: NodeJS.ProcessEnv;
+
+  private static availabilityCache: { available: boolean; version?: string; error?: string; timestamp: number } | null = null;
+  private static readonly AVAILABILITY_CACHE_TTL_MS = 30_000; // 30 seconds
 
   constructor(options: AgentAdapterOptions) {
     this.options = {
@@ -39,6 +43,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       apiBaseUrl: options.apiBaseUrl ?? '',
       apiKey: options.apiKey ?? '',
     };
+    this.cachedEnv = this.buildEnv();
   }
 
   private buildEnv(): NodeJS.ProcessEnv {
@@ -46,7 +51,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     delete env.ELECTRON_RUN_AS_NODE;
     if (this.options.apiBaseUrl) env.ANTHROPIC_BASE_URL = this.options.apiBaseUrl;
     if (this.options.apiKey) env.ANTHROPIC_API_KEY = this.options.apiKey;
-    // 将 bundled Node.js 路径加入 PATH，确保 CLI 能找到 node
     const nodeDir = getBundledNodeDir();
     if (fs.existsSync(path.join(nodeDir, platform() === 'win32' ? 'node.exe' : 'node'))) {
       env.PATH = nodeDir + path.delimiter + env.PATH;
@@ -68,15 +72,26 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   onError(cb: (error: Error) => void) { this.onErrorCallback = cb; }
 
   async checkAvailability() {
+    if (ClaudeCodeAdapter.availabilityCache) {
+      const age = Date.now() - ClaudeCodeAdapter.availabilityCache.timestamp;
+      if (age < ClaudeCodeAdapter.AVAILABILITY_CACHE_TTL_MS) {
+        return ClaudeCodeAdapter.availabilityCache;
+      }
+    }
+
     return new Promise<{ available: boolean; version?: string; error?: string }>((resolve) => {
-      const proc = spawn(getClaudeCommand(), ['--version'], { timeout: AGENT_CLI_VERSION_TIMEOUT_MS, env: this.buildEnv(), shell: true });
+      const proc = spawn(getClaudeCommand(), ['--version'], { timeout: AGENT_CLI_VERSION_TIMEOUT_MS, env: this.cachedEnv, shell: true });
       let stdout = '';
       proc.stdout?.on('data', (d) => { stdout += d.toString(); });
       proc.on('close', (code) => {
-        resolve(code === 0 ? { available: true, version: stdout.trim() } : { available: false, error: `exit code ${code}` });
+        const result = { available: code === 0, version: code === 0 ? stdout.trim() : undefined, error: code !== 0 ? `exit code ${code}` : undefined, timestamp: Date.now() };
+        ClaudeCodeAdapter.availabilityCache = result;
+        resolve(result);
       });
       proc.on('error', (err) => {
-        resolve({ available: false, error: `Claude CLI not found: ${err.message}` });
+        const result = { available: false, error: `Claude CLI not found: ${err.message}`, timestamp: Date.now() };
+        ClaudeCodeAdapter.availabilityCache = result;
+        resolve(result);
       });
     });
   }
@@ -91,7 +106,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     this.currentProcess = spawn(getClaudeCommand(), args, {
       cwd: this.options.workspacePath,
       stdio: ['pipe', 'pipe', 'pipe'],
-      env: this.buildEnv(),
+      env: this.cachedEnv,
       shell: true,
     });
 
@@ -104,9 +119,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     this.currentProcess.stdout?.on('data', (data: Buffer) => {
       if (this.stoppedByUser) return;
       outputBuffer += data.toString();
-      const lines = outputBuffer.split('\n');
-      outputBuffer = lines.pop() || '';
-      for (const line of lines) {
+      let newlineIdx: number;
+      while ((newlineIdx = outputBuffer.indexOf('\n')) !== -1) {
+        const line = outputBuffer.slice(0, newlineIdx);
+        outputBuffer = outputBuffer.slice(newlineIdx + 1);
         if (!line.trim()) continue;
         try {
           this.handleStreamEvent(JSON.parse(line));
@@ -184,6 +200,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       }, AGENT_SIGKILL_DELAY_MS);
     }
     this.setStatus('idle');
+  }
+
+  async waitForExit(): Promise<void> {
+    if (!this.currentProcess) return;
+    return new Promise((resolve) => {
+      this.currentProcess!.on('exit', () => resolve());
+      // Fallback: resolve after SIGKILL delay + buffer
+      setTimeout(resolve, AGENT_SIGKILL_DELAY_MS + 500);
+    });
   }
 
   private handleStreamEvent(json: any) {

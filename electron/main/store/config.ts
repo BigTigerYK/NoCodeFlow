@@ -3,11 +3,18 @@ import { safeStorage } from 'electron';
 import type { AppConfig } from '@shared/types/config';
 import { DEFAULT_CONFIG } from '@shared/types/config';
 
-export const configStore = new Store<AppConfig>({
-  projectName: 'nocodeflow',
-  name: 'nocodeflow-config',
-  defaults: DEFAULT_CONFIG,
-});
+let _configStore: Store<AppConfig> | null = null;
+
+export function getConfigStore(): Store<AppConfig> {
+  if (!_configStore) {
+    _configStore = new Store<AppConfig>({
+      projectName: 'nocodeflow',
+      name: 'nocodeflow-config',
+      defaults: DEFAULT_CONFIG,
+    });
+  }
+  return _configStore;
+}
 
 function encryptValue(plaintext: string): string {
   if (!safeStorage.isEncryptionAvailable()) return plaintext;

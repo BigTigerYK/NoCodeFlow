@@ -1,6 +1,7 @@
 import type { DocumentModel } from '@shared/types/document';
-import { ClaudeAdapter } from '../agent/claude-adapter';
-import type { AgentOutputEvent } from '../agent/types';
+import { app } from 'electron';
+import { createAdapter, type AgentAdapter } from '../agent/adapters';
+import type { AgentOutputEvent } from '@shared/types/agent';
 
 const summaryCache = new Map<string, string>();
 
@@ -48,13 +49,21 @@ ${content}
 function callAgent(prompt: string, apiBaseUrl?: string, apiKey?: string): Promise<string> {
   return new Promise((resolve, reject) => {
     let result = '';
-    const adapter = new ClaudeAdapter({
-      workspacePath: process.cwd(),
+    let stopped = false;
+    const adapter: AgentAdapter = createAdapter('claude-code', {
+      workspacePath: app.getPath('userData'),
       apiBaseUrl: apiBaseUrl || '',
       apiKey: apiKey || '',
       maxTurns: 1,
       timeoutMs: 60000,
     });
+
+    const safeStop = () => {
+      if (!stopped) {
+        stopped = true;
+        adapter.stop();
+      }
+    };
 
     adapter.onOutput((event: AgentOutputEvent) => {
       if (event.type === 'text') {
@@ -64,11 +73,25 @@ function callAgent(prompt: string, apiBaseUrl?: string, apiKey?: string): Promis
     });
 
     adapter.onStatusChange((status) => {
-      if (status === 'completed') resolve(result);
-      if (status === 'error') reject(new Error('Agent failed'));
+      if (status === 'completed') {
+        safeStop();
+        resolve(result);
+      }
+      if (status === 'error') {
+        safeStop();
+        reject(new Error('Agent failed'));
+      }
     });
 
-    adapter.send(prompt).catch(reject);
+    adapter.onError((err) => {
+      safeStop();
+      reject(err);
+    });
+
+    adapter.send(prompt).catch((err) => {
+      safeStop();
+      reject(err);
+    });
   });
 }
 

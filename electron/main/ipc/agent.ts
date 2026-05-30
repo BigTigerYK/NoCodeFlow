@@ -1,7 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import { createAdapter, type AgentAdapter } from '../agent/adapters';
-import { configStore, decryptApiKeys } from '../store/config';
+import { getConfigStore, decryptApiKeys } from '../store/config';
 import { getPermissionManager, waitForPermissionResponse, removePendingConfirmation } from './permission';
 import { getSnapshotManager, initSnapshotManager } from './snapshot';
 import type { AgentOutputEvent } from '@shared/types/agent';
@@ -92,10 +92,16 @@ export function registerAgentHandlers(): void {
     permissionMode?: 'default' | 'auto';
   }) => {
     if (adapter) {
-      adapter.stop();
+      const oldAdapter = adapter;
+      oldAdapter.stop();
+      // Wait for old process to exit before creating new one
+      if ('waitForExit' in oldAdapter) {
+        await (oldAdapter as any).waitForExit();
+      }
+      adapter = null;
     }
 
-    const fullConfig = configStore.store;
+    const fullConfig = getConfigStore().store;
     const decrypted = decryptApiKeys(fullConfig);
     const profiles = decrypted.claude.profiles;
     const activeId = decrypted.claude.activeProfileId;
@@ -131,6 +137,13 @@ export function registerAgentHandlers(): void {
     adapter.onStatusChange((status) => {
       if (win && !win.isDestroyed()) {
         win.webContents.send(IPC_CHANNELS.AGENT_STATUS, { status });
+      }
+    });
+
+    adapter.onError((err) => {
+      logger.error(`Agent error: ${err.message}`, 'agent');
+      if (win && !win.isDestroyed()) {
+        win.webContents.send(IPC_CHANNELS.AGENT_STATUS, { status: 'error', error: err.message });
       }
     });
 

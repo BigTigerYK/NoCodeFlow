@@ -1,11 +1,11 @@
-import * as fs from 'fs';
+import { readFile } from 'fs/promises';
 import type { DocumentModel, DocumentPage, DocumentParagraph } from '@shared/types/document';
 
 export async function parsePdf(filePath: string, docId: string, docName: string): Promise<DocumentModel> {
   const pdfjsLib = await import('pdfjs-dist');
   pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
-  const buffer = fs.readFileSync(filePath);
+  const buffer = await readFile(filePath);
   const uint8Array = new Uint8Array(buffer);
   const loadingTask = pdfjsLib.getDocument({ data: uint8Array, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true });
   const pdfDoc = await loadingTask.promise;

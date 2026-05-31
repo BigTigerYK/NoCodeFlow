@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { ToolUseEntryView } from './Timeline/ToolUseEntryView';
@@ -9,7 +10,7 @@ interface MessageBubbleProps {
   highlight?: boolean;
 }
 
-export function MessageBubble({ message, highlight }: MessageBubbleProps) {
+export const MessageBubble = memo(function MessageBubble({ message, highlight }: MessageBubbleProps) {
   const { role } = message;
 
   // Tool use — rendered as a Timeline card
@@ -65,4 +66,4 @@ export function MessageBubble({ message, highlight }: MessageBubbleProps) {
       )}
     </div>
   );
-}
+});

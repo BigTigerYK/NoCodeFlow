@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
-import MonacoEditor, { OnMount, loader } from '@monaco-editor/react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import MonacoEditor, { OnMount } from '@monaco-editor/react';
 import { useWorkspaceStore } from '@/stores/workspace';
 import { useConfig } from '@/hooks/useConfig';
-
-// Preload Monaco editor workers when this module is imported
-loader.init().catch(() => {});
 
 function useMonacoTheme(): string {
   const { config } = useConfig();
@@ -32,12 +29,28 @@ function useMonacoTheme(): string {
 }
 
 export function Editor() {
-  const { openTabs, activeTabPath, updateTabContent, saveActiveFile } =
-    useWorkspaceStore();
+  const openTabs = useWorkspaceStore((s) => s.openTabs);
+  const activeTabPath = useWorkspaceStore((s) => s.activeTabPath);
+  const updateTabContent = useWorkspaceStore((s) => s.updateTabContent);
+  const saveActiveFile = useWorkspaceStore((s) => s.saveActiveFile);
   const { config } = useConfig();
   const monacoTheme = useMonacoTheme();
 
   const activeTab = openTabs.find((t) => t.path === activeTabPath);
+  const activePathRef = useRef(activeTab?.path);
+  activePathRef.current = activeTab?.path;
+
+  const handleEditorMount: OnMount = useCallback((editor, monaco) => {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      saveActiveFile();
+    });
+  }, [saveActiveFile]);
+
+  const handleChange = useCallback((value: string | undefined) => {
+    if (value !== undefined && activePathRef.current) {
+      updateTabContent(activePathRef.current, value);
+    }
+  }, [updateTabContent]);
 
   if (!activeTab) {
     return (
@@ -49,12 +62,6 @@ export function Editor() {
     );
   }
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      saveActiveFile();
-    });
-  };
-
   return (
     <div className="h-full w-full">
       <MonacoEditor
@@ -62,11 +69,7 @@ export function Editor() {
         language={activeTab.language}
         value={activeTab.content}
         theme={monacoTheme}
-        onChange={(value) => {
-          if (value !== undefined) {
-            updateTabContent(activeTab.path, value);
-          }
-        }}
+        onChange={handleChange}
         onMount={handleEditorMount}
         options={{
           fontSize: config.general.fontSize,

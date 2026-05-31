@@ -4,6 +4,7 @@ import { FileNode } from '@shared/types/workspace';
 import type { AppConfig } from '@shared/types/config';
 import { MAX_RECENT_WORKSPACES } from '@shared/constants';
 import { getLanguageForFile } from '@shared/utils/file-extensions';
+import { ipcInvoke } from '@/lib/ipc';
 
 export interface TabInfo {
   path: string;
@@ -44,25 +45,6 @@ interface WorkspaceState {
   deletePath: (filePath: string) => Promise<void>;
   renamePath: (oldPath: string, newName: string) => Promise<string>;
   movePath: (sourcePath: string, targetDir: string) => Promise<string>;
-}
-
-interface InvokeResult<T = unknown> {
-  data?: T;
-  error?: string;
-}
-
-async function ipcInvoke<T = unknown>(
-  channel: string,
-  ...args: unknown[]
-): Promise<T> {
-  const result = (await window.api.invoke(
-    channel,
-    ...args,
-  )) as InvokeResult<T>;
-  if (result.error) {
-    throw new Error(result.error);
-  }
-  return result.data as T;
 }
 
 export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
@@ -207,13 +189,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
   updateTabContent: (path: string, content: string) => {
     const { openTabs } = get();
-    set({
-      openTabs: openTabs.map((t) =>
-        t.path === path
-          ? { ...t, content, isDirty: content !== t.originalContent }
-          : t,
-      ),
-    });
+    const idx = openTabs.findIndex((t) => t.path === path);
+    if (idx < 0) return;
+    const tab = openTabs[idx];
+    const updated = { ...tab, content, isDirty: content !== tab.originalContent };
+    const newTabs = openTabs.slice();
+    newTabs[idx] = updated;
+    set({ openTabs: newTabs });
   },
 
   saveFile: async (path: string) => {

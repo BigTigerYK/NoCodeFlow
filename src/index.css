@@ -195,19 +195,6 @@
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Responsive breakpoints */
-@media (max-width: 1024px) {
-  .sidebar-nav-label {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .hide-on-mobile {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -16,9 +16,15 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ workspacePath }: ChatPanelProps) {
-  const { messages, timelineEntries, status, isAvailable, sendMessage, stopAgent, initialize } =
-    useAgentStore();
-  const { initialize: initPermission, dispose: disposePermission } = usePermissionStore();
+  const messages = useAgentStore((s) => s.messages);
+  const timelineEntries = useAgentStore((s) => s.timelineEntries);
+  const status = useAgentStore((s) => s.status);
+  const isAvailable = useAgentStore((s) => s.isAvailable);
+  const sendMessage = useAgentStore((s) => s.sendMessage);
+  const stopAgent = useAgentStore((s) => s.stopAgent);
+  const initialize = useAgentStore((s) => s.initialize);
+  const initPermission = usePermissionStore((s) => s.initialize);
+  const disposePermission = usePermissionStore((s) => s.dispose);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initializedRef = useRef(false);
   const [showHistory, setShowHistory] = useState(false);

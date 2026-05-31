@@ -76,19 +76,22 @@ export class SnapshotManager {
   async listSnapshots(filter?: { filePath?: string }): Promise<SnapshotMetadata[]> {
     try {
       const entries = await fs.readdir(this.snapshotRoot, { withFileTypes: true });
-      const snapshots: SnapshotMetadata[] = [];
+      const dirs = entries.filter(e => e.isDirectory());
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        try {
+      const results = await Promise.allSettled(
+        dirs.map(async (entry) => {
           const metaPath = path.join(this.snapshotRoot, entry.name, 'metadata.json');
           const raw = await fs.readFile(metaPath, 'utf-8');
-          const meta = JSON.parse(raw) as SnapshotMetadata;
-          if (filter?.filePath && meta.originalPath !== path.resolve(filter.filePath)) continue;
-          snapshots.push(meta);
-        } catch {
-          // skip invalid snapshot dirs
-        }
+          return JSON.parse(raw) as SnapshotMetadata;
+        })
+      );
+
+      const snapshots: SnapshotMetadata[] = [];
+      for (const r of results) {
+        if (r.status !== 'fulfilled') continue;
+        const meta = r.value;
+        if (filter?.filePath && meta.originalPath !== path.resolve(filter.filePath)) continue;
+        snapshots.push(meta);
       }
 
       return snapshots.sort((a, b) => b.timestamp - a.timestamp);
@@ -149,19 +152,22 @@ export class SnapshotManager {
 
   async deleteSnapshot(snapshotId: string): Promise<boolean> {
     const entries = await fs.readdir(this.snapshotRoot, { withFileTypes: true });
+    const dirEntries = entries.filter(e => e.isDirectory());
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      try {
+    const results = await Promise.allSettled(
+      dirEntries.map(async (entry) => {
         const metaPath = path.join(this.snapshotRoot, entry.name, 'metadata.json');
         const raw = await fs.readFile(metaPath, 'utf-8');
         const meta = JSON.parse(raw) as SnapshotMetadata;
-        if (meta.id === snapshotId) {
-          await fs.rm(path.join(this.snapshotRoot, entry.name), { recursive: true, force: true });
-          return true;
-        }
-      } catch {
-        // skip
+        return { entry, meta };
+      })
+    );
+
+    for (const r of results) {
+      if (r.status !== 'fulfilled') continue;
+      if (r.value.meta.id === snapshotId) {
+        await fs.rm(path.join(this.snapshotRoot, r.value.entry.name), { recursive: true, force: true });
+        return true;
       }
     }
 
@@ -170,18 +176,20 @@ export class SnapshotManager {
 
   private async cleanup(): Promise<void> {
     const entries = await fs.readdir(this.snapshotRoot, { withFileTypes: true });
-    const dirs: { name: string; timestamp: number }[] = [];
+    const dirEntries = entries.filter(e => e.isDirectory());
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      try {
+    const results = await Promise.allSettled(
+      dirEntries.map(async (entry) => {
         const metaPath = path.join(this.snapshotRoot, entry.name, 'metadata.json');
         const raw = await fs.readFile(metaPath, 'utf-8');
         const meta = JSON.parse(raw) as SnapshotMetadata;
-        dirs.push({ name: entry.name, timestamp: meta.timestamp });
-      } catch {
-        // skip invalid
-      }
+        return { name: entry.name, timestamp: meta.timestamp };
+      })
+    );
+
+    const dirs: { name: string; timestamp: number }[] = [];
+    for (const r of results) {
+      if (r.status === 'fulfilled') dirs.push(r.value);
     }
 
     if (dirs.length <= MAX_SNAPSHOTS) return;
@@ -189,13 +197,9 @@ export class SnapshotManager {
     dirs.sort((a, b) => a.timestamp - b.timestamp);
     const toDelete = dirs.slice(0, dirs.length - MAX_SNAPSHOTS);
 
-    for (const d of toDelete) {
-      try {
-        await fs.rm(path.join(this.snapshotRoot, d.name), { recursive: true, force: true });
-      } catch {
-        // best effort
-      }
-    }
+    await Promise.allSettled(
+      toDelete.map(d => fs.rm(path.join(this.snapshotRoot, d.name), { recursive: true, force: true }))
+    );
   }
 
   private isWithinWorkspace(filePath: string): boolean {

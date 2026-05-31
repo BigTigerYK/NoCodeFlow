@@ -58,6 +58,31 @@ export default defineConfig({
     ]),
     electronRenderer(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
+              return 'vendor-monaco';
+            }
+            if (id.includes('react-syntax-highlighter')) {
+              return 'vendor-syntax';
+            }
+            if (id.includes('react-markdown') || id.includes('remark-gfm') || id.includes('remark-') || id.includes('unified') || id.includes('mdast-util') || id.includes('micromark')) {
+              return 'vendor-markdown';
+            }
+            if (id.includes('@radix-ui')) {
+              return 'vendor-radix';
+            }
+            if (id.includes('/diff')) {
+              return 'vendor-diff';
+            }
+          }
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),

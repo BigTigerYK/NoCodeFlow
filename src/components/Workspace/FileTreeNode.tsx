@@ -116,17 +116,15 @@ export const FileTreeNode = memo(function FileTreeNode({
   node,
   depth,
 }: FileTreeNodeProps) {
-  const {
-    expandedPaths,
-    selectedPath,
-    toggleExpand,
-    openFile,
-    createFile,
-    createDirectory,
-    deletePath,
-    renamePath,
-    movePath,
-  } = useWorkspaceStore();
+  const expandedPaths = useWorkspaceStore((s) => s.expandedPaths);
+  const selectedPath = useWorkspaceStore((s) => s.selectedPath);
+  const toggleExpand = useWorkspaceStore((s) => s.toggleExpand);
+  const openFile = useWorkspaceStore((s) => s.openFile);
+  const createFile = useWorkspaceStore((s) => s.createFile);
+  const createDirectory = useWorkspaceStore((s) => s.createDirectory);
+  const deletePath = useWorkspaceStore((s) => s.deletePath);
+  const renamePath = useWorkspaceStore((s) => s.renamePath);
+  const movePath = useWorkspaceStore((s) => s.movePath);
 
   const [isRenaming, setIsRenaming] = useState(false);
   const [creating, setCreating] = useState<'file' | 'dir' | null>(null);

@@ -24,18 +24,18 @@ function DragHandle({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => voi
 }
 
 export function WorkspacePage() {
-  const {
-    isOpen,
-    workspaceName,
-    rootPath,
-    openWorkspace,
-    activeTabPath,
-    openTabs,
-    saveActiveFile,
-    closeWorkspace,
-  } = useWorkspaceStore();
+  const isOpen = useWorkspaceStore((s) => s.isOpen);
+  const workspaceName = useWorkspaceStore((s) => s.workspaceName);
+  const rootPath = useWorkspaceStore((s) => s.rootPath);
+  const openWorkspace = useWorkspaceStore((s) => s.openWorkspace);
+  const activeTabPath = useWorkspaceStore((s) => s.activeTabPath);
+  const openTabs = useWorkspaceStore((s) => s.openTabs);
+  const saveActiveFile = useWorkspaceStore((s) => s.saveActiveFile);
+  const closeWorkspace = useWorkspaceStore((s) => s.closeWorkspace);
 
-  const { isOpen: isSnapshotOpen, open: openSnapshot, close: closeSnapshot } = useSnapshotStore();
+  const isSnapshotOpen = useSnapshotStore((s) => s.isOpen);
+  const openSnapshot = useSnapshotStore((s) => s.open);
+  const closeSnapshot = useSnapshotStore((s) => s.close);
 
   const [showAgent, setShowAgent] = useState(() => {
     // Auto-show agent if there's a pending task from HomePage

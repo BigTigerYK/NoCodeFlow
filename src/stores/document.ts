@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { IPC_CHANNELS } from '@shared/types/ipc';
 import type { DocumentModel } from '@shared/types/document';
+import { ipcInvoke } from '@/lib/ipc';
 
 interface DocumentState {
   documents: DocumentModel[];
@@ -15,17 +16,6 @@ interface DocumentState {
   searchDocuments: (query: string) => Promise<DocumentModel[]>;
   setCurrentDocument: (id: string | null) => void;
   clearError: () => void;
-}
-
-interface InvokeResult<T = unknown> {
-  data?: T;
-  error?: string;
-}
-
-async function ipcInvoke<T = unknown>(channel: string, args?: unknown): Promise<T> {
-  const result = (await window.api.invoke(channel, args)) as InvokeResult<T>;
-  if (result.error) throw new Error(result.error);
-  return result.data as T;
 }
 
 export const useDocumentStore = create<DocumentState>((set) => ({

@@ -1,9 +1,9 @@
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import type { DocumentModel, DocumentPage, DocumentParagraph } from '@shared/types/document';
 
 export async function parseMarkdown(filePath: string, docId: string, docName: string): Promise<DocumentModel> {
   const { marked } = await import('marked');
-  const rawText = fs.readFileSync(filePath, 'utf-8');
+  const rawText = await fs.readFile(filePath, 'utf-8');
   const paragraphs = extractMarkdownParagraphs(rawText);
   const wordCount = countWords(rawText);
 

@@ -1,9 +1,9 @@
-import * as fs from 'fs';
+import { readFile } from 'fs/promises';
 import type { DocumentModel, DocumentPage, DocumentParagraph } from '@shared/types/document';
 
 export async function parseWord(filePath: string, docId: string, docName: string): Promise<DocumentModel> {
   const mammoth = await import('mammoth');
-  const buffer = fs.readFileSync(filePath);
+  const buffer = await readFile(filePath);
 
   const result = await mammoth.convertToHtml({ buffer });
   const html = result.value;

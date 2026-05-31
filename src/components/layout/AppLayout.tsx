@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Sidebar, type SidebarPage } from './Sidebar';
 import { StatusBar } from './StatusBar';
-import { SettingsPage } from '@/components/Settings/SettingsPage';
-import { WorkspacePage } from '@/components/Workspace/WorkspacePage';
-import { HomePage } from '@/components/TaskCenter/HomePage';
-import { KnowledgePage } from '@/components/Knowledge/KnowledgePage';
 import { OnboardingPage } from '@/components/Onboarding/OnboardingPage';
 import { ToastContainer } from '@/components/Common/Toast';
 import { useConfig } from '@/hooks/useConfig';
+
+const SettingsPage = lazy(() => import('@/components/Settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const WorkspacePage = lazy(() => import('@/components/Workspace/WorkspacePage').then(m => ({ default: m.WorkspacePage })));
+const HomePage = lazy(() => import('@/components/TaskCenter/HomePage').then(m => ({ default: m.HomePage })));
+const KnowledgePage = lazy(() => import('@/components/Knowledge/KnowledgePage').then(m => ({ default: m.KnowledgePage })));
 
 export function AppLayout() {
   const [activePage, setActivePage] = useState<SidebarPage>('task-center');
@@ -39,16 +40,20 @@ export function AppLayout() {
   }, []);
 
   const renderContent = () => {
-    switch (activePage) {
-      case 'task-center':
-        return <HomePage />;
-      case 'workspace':
-        return <WorkspacePage />;
-      case 'knowledge':
-        return <KnowledgePage />;
-      case 'settings':
-        return <SettingsPage />;
-    }
+    const page = (() => {
+      switch (activePage) {
+        case 'task-center':
+          return <HomePage />;
+        case 'workspace':
+          return <WorkspacePage />;
+        case 'knowledge':
+          return <KnowledgePage />;
+        case 'settings':
+          return <SettingsPage />;
+      }
+    })();
+
+    return <Suspense fallback={<div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">加载中...</div>}>{page}</Suspense>;
   };
 
   if (showOnboarding) {

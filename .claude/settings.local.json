@@ -24,7 +24,14 @@
       "Bash(codegraph install *)",
       "Bash(npm -v)",
       "Bash(npm ls *)",
-      "mcp__codegraph__codegraph_files"
+      "mcp__codegraph__codegraph_files",
+      "Bash(VITE_INTERNAL_BUILD=true npx tsc --noEmit)",
+      "Bash(cross-env VITE_INTERNAL_BUILD=true npx vite build)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git checkout *)",
+      "Bash(git stash *)",
+      "Bash(git pull *)"
     ]
   }
 }
